@@ -11,7 +11,7 @@ import tempfile
 import time
 import zlib
 from urllib.request import urlopen
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'artifacts'
@@ -46,7 +46,7 @@ try:
         errors = []
         page.on('pageerror', lambda error: errors.append(str(error)))
         page.goto(f'http://127.0.0.1:{PORT}/')
-        page.wait_for_function("document.querySelector('#stage').getAttribute('aria-busy') === 'false'")
+        expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
         assert 'WebGL2' in page.locator('#backend-pill').inner_text(), page.locator('#status').inner_text()
         page.screenshot(path=str(OUT / 'lab-desktop.png'), full_page=True)
         before = page.locator('#canvas-mount canvas').evaluate('(c) => c.toDataURL()')
@@ -56,9 +56,9 @@ try:
         assert before != after, 'The shader must change actual output, not just its label.'
         results.append('real WebGL2 shader changes output and bypass restores original')
         page.locator('#file').set_input_files({'name': 'alpha-fixture.png', 'mimeType': 'image/png', 'buffer': png()})
-        page.wait_for_function("document.querySelector('#dimensions').textContent === '192 × 108'")
+        expect(page.locator('#dimensions')).to_have_text('192 × 108')
         page.locator('#scale').select_option('2')
-        page.wait_for_function("document.querySelector('#dimensions').textContent === '384 × 216'")
+        expect(page.locator('#dimensions')).to_have_text('384 × 216')
         with page.expect_download() as download:
             page.locator('#export').click()
         output = Path(download.value.path()).read_bytes()
@@ -68,9 +68,10 @@ try:
         assert 'Choose a PNG' in page.locator('#status').inner_text()
         results.append('unsupported-file rejection preserves existing session')
         page.locator('#sample').click()
-        page.wait_for_function("document.querySelector('#stage').getAttribute('aria-busy') === 'false' && document.querySelector('#dimensions').textContent === '960 × 540'")
+        expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
+        expect(page.locator('#dimensions')).to_have_text('960 × 540')
         page.locator('#benchmark').click()
-        page.wait_for_function("document.querySelector('#status').textContent.includes('60-frame diagnostic complete')", timeout=60000)
+        expect(page.locator('#status')).to_contain_text('60-frame diagnostic complete', timeout=60000)
         assert page.locator('#metric-count').inner_text() == '60'
         with page.expect_download() as download:
             page.locator('#report').click()
@@ -80,17 +81,18 @@ try:
         results.append('measured 60-frame report without filenames or media')
         page.evaluate("navigator.mediaDevices.getDisplayMedia = async () => { throw new DOMException('User cancelled capture', 'NotAllowedError'); }")
         page.locator('#share').click()
-        page.wait_for_function("document.querySelector('#status').textContent.includes('User cancelled')")
+        expect(page.locator('#status')).to_contain_text('User cancelled')
         assert page.locator('#canvas-mount canvas').count() == 0
         results.append('capture denial stops the previous session without a stuck canvas')
         for _ in range(5):
             page.locator('#sample').click()
-            page.wait_for_function("document.querySelector('#stage').getAttribute('aria-busy') === 'false' && document.querySelector('#canvas-mount canvas') !== null")
+            expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
+            expect(page.locator('#canvas-mount canvas')).to_have_count(1)
             page.keyboard.press('Escape')
             assert page.locator('#canvas-mount canvas').count() == 0
         results.append('five create/process/dispose cycles and Escape cleanup')
         page.locator('#sample').click()
-        page.wait_for_function("document.querySelector('#stage').getAttribute('aria-busy') === 'false'")
+        expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
         page.set_viewport_size({'width': 390, 'height': 844})
         assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Mobile horizontal overflow'
         page.screenshot(path=str(OUT / 'lab-mobile.png'), full_page=True)
@@ -112,7 +114,7 @@ try:
                 popup.locator('#lab').click()
             lab = opened.value
             lab.wait_for_load_state()
-            lab.wait_for_function("document.querySelector('#stage').getAttribute('aria-busy') === 'false'", timeout=30000)
+            expect(lab.locator('#stage')).to_have_attribute('aria-busy', 'false', timeout=30000)
             assert 'apps/viewer/index.html' in lab.url
             assert 'Spatial' in lab.locator('#backend-pill').inner_text(), lab.locator('#status').inner_text()
             results.append('actual MV3 extension service worker, popup and lab launch')
