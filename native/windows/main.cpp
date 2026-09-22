@@ -8,6 +8,7 @@
 #include <bcrypt.h>
 #include <winrt/base.h>
 #include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Graphics.Capture.h>
 #include <winrt/Windows.Graphics.DirectX.h>
@@ -123,7 +124,7 @@ public:
     D3D_FEATURE_LEVEL level{};
     check_hresult(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
       nullptr, 0, D3D11_SDK_VERSION, device.put(), &level, context.put()));
-    auto dxgi = device.as<IDXGIDevice>(); com_ptr<IInspectable> inspectable;
+    auto dxgi = device.as<IDXGIDevice>(); com_ptr<::IInspectable> inspectable;
     check_hresult(CreateDirect3D11DeviceFromDXGIDevice(dxgi.get(), inspectable.put())); captureDevice = inspectable.as<IDirect3DDevice>();
     com_ptr<IDXGIAdapter> adapter; check_hresult(dxgi->GetAdapter(adapter.put()));
     // Until there is an end-to-end HDR pipeline, refuse an HDR desktop rather than silently clip it.
@@ -372,7 +373,16 @@ int selfTest() {
   };
   for (auto const& text : invalid) { bool rejected = false; try { parse(text); } catch (...) { rejected = true; } if (!rejected) return 2; }
   auto session = session_id(); if (!token(session) || session.size() != 32) return 3;
-  std::cout << "PASS: native protocol validation and secure session IDs; capture and GPU not exercised.\n"; return 0;
+  for (auto entry : { "vs", "ps" }) {
+    com_ptr<ID3DBlob> code, error;
+    auto profile = std::string(entry) == "vs" ? "vs_5_0" : "ps_5_0";
+    if (FAILED(D3DCompile(shader, sizeof(shader), nullptr, nullptr, nullptr, entry, profile,
+      D3DCOMPILE_ENABLE_STRICTNESS, 0, code.put(), error.put()))) {
+      if (error) std::cerr.write(static_cast<char const*>(error->GetBufferPointer()), static_cast<std::streamsize>(error->GetBufferSize()));
+      return 4;
+    }
+  }
+  std::cout << "PASS: protocol validation, secure session IDs and HLSL compilation; capture and GPU execution not exercised.\n"; return 0;
 }
 int wmain(int argc, wchar_t** argv) {
   try {
