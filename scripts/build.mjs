@@ -1,3 +1,4 @@
+import { prepareNR } from './prepare-nr.mjs';
 import { spawnSync } from 'node:child_process';
 import { cp, mkdir, readdir, rm, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -16,10 +17,11 @@ async function assets(path) {
   }
 }
 await assets('apps');
+await prepareNR();
 for (const kind of ['extension', 'site']) {
   await cp('dist/compiled', `dist/${kind}`, { recursive: true });
   await copyFile('apps/viewer/index.html', `dist/${kind}/index.html`);
 }
 await copyFile('apps/extension/manifest.json', 'dist/extension/manifest.json');
 await rm('dist/site/apps/extension', { recursive: true, force: true });
-console.log('Built dist/extension and dist/site. All executable assets are local; no runtime dependencies.');
+console.log('Built dist/extension and dist/site. All executable assets are bundled; no model files are distributed.');

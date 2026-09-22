@@ -1,0 +1,5 @@
+{
+  "schema": 1,
+  "approvals": [],
+  "note": "No NVIDIA model data has been approved for use or independently validated by this project. The reference adapter is bundled, but neural inference remains locked. A file selection or acknowledgment does not authorize use."
+}

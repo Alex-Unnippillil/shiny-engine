@@ -13,12 +13,17 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+          submodules: true
       - name: Archive exact source revision
-        run: git archive --format=zip -o shiny-engine-source.zip HEAD
+        run: |
+          git archive --format=zip -o shiny-engine-source.zip HEAD
+          git -C third_party/opendlss-nr archive --format=zip -o ../../opendlss-source.zip HEAD LICENSE NOTICE ports/browser-webgpu/src ports/browser-webgpu/shaders
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: source-snapshot
-          path: shiny-engine-source.zip
+          path: |
+            shiny-engine-source.zip
+            opendlss-source.zip
           if-no-files-found: error
   browser-build:
     runs-on: ubuntu-latest
@@ -27,6 +32,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+          submodules: true
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
