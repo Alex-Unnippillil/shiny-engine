@@ -21,7 +21,7 @@ def png(width=96, height=64):
     raw=b''.join(b'\0'+bytes((64,128,192,128))*width for _ in range(height))
     return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('!2I5B',width,height,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
 
-results=[]; errors=[]
+results=[]; errors=[]; console=[]
 server=subprocess.Popen(['node','scripts/serve.mjs'],cwd=ROOT,env={**os.environ,'PORT':str(PORT)},stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
 try:
     for _ in range(100):
@@ -31,11 +31,14 @@ try:
     else:raise RuntimeError('NR test server did not start')
     with sync_playwright() as p:
         executable=os.environ.get('CHROMIUM_PATH') or (None if os.environ.get('CI') else shutil.which('chromium'))
+        # Use SwANGLE for browser composition and SwiftShader for Dawn independently.
+        # Forcing all Chromium composition through Vulkan can lose imported canvas surfaces.
         browser=p.chromium.launch(executable_path=executable,channel=None if executable else 'chromium',headless=True,args=[
-            '--no-sandbox','--enable-unsafe-webgpu','--enable-features=Vulkan','--use-angle=vulkan',
-            '--use-vulkan=swiftshader','--use-webgpu-adapter=swiftshader','--disable-vulkan-surface'])
+            '--no-sandbox','--enable-unsafe-webgpu','--use-angle=swiftshader',
+            '--enable-unsafe-swiftshader','--use-webgpu-adapter=swiftshader'])
         page=browser.new_page(viewport={'width':1440,'height':1050},accept_downloads=True)
         page.on('pageerror',lambda error:errors.append(str(error)))
+        page.on('console',lambda message:console.append(f'{message.type}: {message.text}'))
         page.goto(f'http://127.0.0.1:{PORT}/apps/nr/index.html')
         expect(page.locator('#availability')).to_have_text('Neural inference locked in this build')
         expect(page.locator('#prepare')).to_be_disabled();expect(page.locator('#live')).to_be_disabled()
@@ -89,16 +92,20 @@ try:
         page.keyboard.press('Escape');expect(page.locator('#source-stage img')).to_have_count(0)
         expect(page.locator('#stop')).to_be_disabled()
         results.append('320/390/768 layouts and explicit release controls remain usable')
-        # This is an actual GPU wrapper test with synthetic residuals, NOT a trained-model inference test.
+        # Actual GPU wrapper test with synthetic residuals, NOT trained-model inference.
         gpu_result=page.evaluate("""async () => {
           const {FramePipeline}=await import('/packages/nr/engine.js');
           const {SHADERS,geometryFromValid}=await import('/vendor/opendlss/api.js');
           const adapter=await navigator.gpu?.requestAdapter();if(!adapter)throw Error('WebGPU test adapter unavailable');
+          console.info('NR GPU adapter: '+JSON.stringify(adapter.info));
           const device=await adapter.requestDevice();const g=geometryFromValid(64,48);
+          device.addEventListener('uncapturederror',e=>console.error('NR GPU validation: '+e.error.message));
+          device.lost.then(info=>console.info('NR GPU device state: '+info.reason+' '+info.message));
           const head=device.createBuffer({size:g.fullRows*4*4,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
           const features=device.createBuffer({size:g.fullRows*16*4,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC});
           const canvas=document.createElement('canvas');document.body.append(canvas);
           const renderer=await FramePipeline.create(canvas,device,g,features,head,SHADERS);
+          console.info('NR GPU pipelines created');
           const input=document.createElement('canvas');input.width=64;input.height=48;
           const ctx=input.getContext('2d');ctx.fillStyle='rgba(64,128,192,0.5)';ctx.fillRect(0,0,64,48);
           const source=ctx.getImageData(0,0,1,1).data;
@@ -106,6 +113,7 @@ try:
           device.queue.writeBuffer(head,0,headData);
           const image=await createImageBitmap(input);
           const ms=await renderer.process(image,{tone:.5,structure:.75,split:0},()=>{});image.close();
+          console.info('NR GPU ImageBitmap frame completed');
           const read=()=>{const c=document.createElement('canvas');c.width=64;c.height=48;const x=c.getContext('2d');x.drawImage(canvas,0,0);return Array.from(x.getImageData(32,24,1,1).data);};
           const enhanced=read();
           if(Math.abs(enhanced[0]-(source[0]+25.5))>4 || Math.abs(enhanced[1]-(source[1]-12.75))>4 || Math.abs(enhanced[3]-source[3])>2)throw Error('Residual/alpha mismatch: '+enhanced);
@@ -121,6 +129,7 @@ try:
           }
           rb.unmap();rb.destroy();
           const frame=new VideoFrame(input,{timestamp:0});await renderer.process(frame,{tone:.5,structure:.75,split:0},()=>{});frame.close();
+          console.info('NR GPU VideoFrame completed');
           headData.fill(NaN);device.queue.writeBuffer(head,0,headData);
           const bad=await createImageBitmap(input);let rejected=false;
           try{await renderer.process(bad,{tone:0,structure:0,split:0},()=>{});}catch(e){rejected=String(e).includes('non-finite');}finally{bad.close();}
@@ -144,6 +153,8 @@ try:
         browser.close()
         print(json.dumps({'passed':len(results),'scenarios':results},indent=2))
 finally:
+    (OUT/'neural-console.json').write_text(json.dumps({'console':console,'pageErrors':errors},indent=2))
+    print('\n'.join(console[-20:]),flush=True)
     server.terminate()
     try:server.wait(timeout=5)
     except subprocess.TimeoutExpired:server.kill()
