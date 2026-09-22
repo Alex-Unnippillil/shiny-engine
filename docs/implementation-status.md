@@ -1,4 +1,4 @@
-# Implementation status — 0.1.0 alpha
+# Implementation status — 0.2.0 browser UX alpha
 
 This status document is separate from the unchanged input research plan. It does not retroactively rewrite the plan's research date, performance claims, or proposed acceptance gates.
 
@@ -18,3 +18,7 @@ No milestone is claimed complete merely because its source files exist. Passing 
 The useful baseline is an original spatial-enhancement application, not a reproduction of the proprietary DLSS 5 network. It is intentionally labeled alpha. The NVIDIA, OpenDLSS-NR, NijiLucid, Anime4K, Magpie and Real-ESRGAN references were not copied into this implementation.
 
 Subsequent work should begin with interactive validation of the native spatial path and additional browser-video/site regression fixtures before adding more backends. Keep actual measurements, source revision, hardware and limitations together in each evidence report.
+
+## Browser UX update
+
+The 0.2.0 update adds transactional source loading, comparison drag/keyboard controls, single-preview video transport, remembered presets, explicit export views, fullscreen/help, and cancellable diagnostics. The native binary is unchanged. These improvements do not complete the remaining M0–M5 model, hardware, temporal or overlay gates. See `ux-release.md` and CI artifacts for the tested revision.

@@ -1,10 +1,22 @@
 # Shiny Engine
 
 Local-first media enhancement for Chrome/Edge, with an optional Windows companion.
-**Version 0.1.0 is a spatial-enhancement alpha, not a DLSS 5 implementation.**
+**Version 0.2.0 improves the browser workflow. It remains a spatial-enhancement alpha, not a DLSS 5 implementation.**
 
 This implements the useful spatial baseline from [the supplied research plan](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md).
 The plan is retained unchanged as a historical input. [Implementation status](docs/implementation-status.md) describes what is actually delivered; roadmap proposals are not finished features.
+
+## New in 0.2.0
+
+The Media Lab now puts source selection above the preview, with an on-image draggable comparison divider, explicit Original / Split view / Enhanced buttons, and fullscreen. Keyboard and touch controls remain available. Help (`?`) lists shortcuts and never dismisses your media when closed with Escape.
+
+Local videos have a single processed preview with play/pause, seek, volume/mute, and playback speed. Paused and hidden video sessions stop continuous processing. Original video controls remain available when the renderer cannot be used.
+
+Opening corrupt images/videos or cancelling window sharing preserves the active source. Loading can be cancelled; late streams are stopped, and out-of-order file loads cannot replace the newest source. Presets, custom adjustments, scale and comparison settings persist locally. **Try demo** keeps adjustments; **Reset adjustments** restores Balanced without replacing the source.
+
+PNG export explicitly chooses enhanced, original, or the current comparison view, with source/output dimensions and safe filenames. Still-frame diagnostics can be cancelled. The extension popup explains supported players and disables page-specific actions on unavailable tabs. Companion setup shows the extension ID when opened from the installed extension.
+
+The Windows executable is unchanged in this browser-focused release. See [the UX change and validation notes](docs/ux-release.md) for scope and test coverage.
 
 ## What is included
 
@@ -28,7 +40,7 @@ npm run dev
 
 Open `http://127.0.0.1:4173`. The deterministic demo is generated locally. Use **Open image or video**, or drag a supported file into the lab. Nothing is uploaded. Use **B** to compare with the original and **Escape** or **Stop session** to release the source.
 
-PNG, JPEG, WebP and AVIF images and browser-decodable MP4/WebM/Ogg videos are accepted. Images are limited to 50 MiB / 33 megapixels and videos to 2 GiB. The processing output is capped at 4096 pixels on an axis and approximately 8.3 megapixels. Output dimensions are shown, including any cap. Video export/recording is not provided; Export PNG saves one enhanced still frame.
+PNG, JPEG, WebP and AVIF images and browser-decodable MP4/WebM/Ogg videos are accepted. Images are limited to 50 MiB / 33 megapixels and videos to 2 GiB. The processing output is capped at 4096 pixels on an axis and approximately 8.3 megapixels. Output dimensions are shown, including any cap. Video export/recording is not provided; Export PNG saves one still frame in the selected enhanced, original, or comparison view.
 
 **Share a window** asks for browser consent. Do not select the viewer itself. Browser monitor capture is disabled to avoid feedback. Audio remains with the original source application. Captured streams are released on stop or page closure.
 
