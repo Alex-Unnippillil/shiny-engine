@@ -1,0 +1,21 @@
+/* Constrain intrinsic form and hash widths without hiding overflow. */
+.settings, .main-column, .boundary, nav { min-width: 0; }
+select { min-width: 0; max-width: 100%; }
+.settings { overflow-wrap: anywhere; }
+.brand { flex-shrink: 0; }
+.metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 740px) {
+  .workspace, .intro { grid-template-columns: minmax(0, 1fr); }
+  header { gap: 12px; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 380px) {
+  header { flex-wrap: wrap; }
+  nav { width: 100%; justify-content: space-between; }
+  .source-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .source-toolbar .button:first-child { grid-column: 1 / -1; }
+  .compare-row { flex-wrap: wrap; }
+  .compare-row label { max-width: none; flex-basis: 100%; }
+  .compare-row input { min-width: 0; }
+  .metrics dd { font-size: 19px; }
+}
