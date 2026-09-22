@@ -1,0 +1,68 @@
+name: Isolated GPU canvas diagnostic
+on:
+  push:
+    branches: [qa/nr-canvas-diagnostic]
+permissions:
+  contents: read
+jobs:
+  canvas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - run: python -m pip install playwright==1.63.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Exercise trusted synthetic canvas on software backends
+        env:
+          DEBUG: pw:browser
+        run: |
+          mkdir -p artifacts
+          cat > /tmp/canvas-probe.py <<'PY'
+          import json, threading
+          from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+          from playwright.sync_api import sync_playwright
+          class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+              self.send_response(200);self.send_header('Content-Type','text/html');self.end_headers();self.wfile.write(b'<!doctype html><title>Trusted GPU fixture</title>')
+            def log_message(self,*args): pass
+          server=ThreadingHTTPServer(('127.0.0.1',4190),Handler)
+          threading.Thread(target=server.serve_forever,daemon=True).start()
+          common=['--no-sandbox','--enable-unsafe-webgpu','--enable-unsafe-swiftshader']
+          sw=['--use-gl=angle','--use-angle=swiftshader']
+          cases=[
+            ('swangle',True,sw),
+            ('swangle-vulkan',True,sw+['--enable-features=Vulkan,VulkanFromANGLE','--use-vulkan=swiftshader','--disable-vulkan-surface']),
+            ('graphite',True,sw+['--enable-features=SkiaGraphite','--skia-graphite-backend=dawn-vulkan']),
+            ('headed-swangle',False,sw),
+            ('headed-mesa',False,['--use-gl=angle','--use-angle=gl','--enable-features=Vulkan']),
+          ]
+          results=[]
+          with sync_playwright() as p:
+            for name,headless,args in cases:
+              browser=None
+              try:
+                browser=p.chromium.launch(headless=headless,channel='chromium',args=common+args)
+                page=browser.new_page();page.goto('http://127.0.0.1:4190')
+                result=page.evaluate('''async () => await Promise.race([
+                  (async()=>{const a=await navigator.gpu.requestAdapter();if(!a)throw Error('No adapter');
+                    const d=await a.requestDevice();const c=document.createElement('canvas');c.width=64;c.height=48;document.body.append(c);
+                    const x=c.getContext('webgpu');x.configure({device:d,format:navigator.gpu.getPreferredCanvasFormat()});
+                    const e=d.createCommandEncoder();const pass=e.beginRenderPass({colorAttachments:[{view:x.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store',clearValue:{r:1,g:0,b:0,a:1}}]});pass.end();d.queue.submit([e.finish()]);await d.queue.onSubmittedWorkDone();
+                    const read=document.createElement('canvas');read.width=64;read.height=48;const y=read.getContext('2d');y.drawImage(c,0,0);const pixel=Array.from(y.getImageData(0,0,1,1).data);
+                    x.unconfigure();d.destroy();if(pixel.join(',')!=='255,0,0,255')throw Error('Wrong output '+pixel);
+                    return {pixel,adapter:{vendor:a.info.vendor,architecture:a.info.architecture,description:a.info.description}};})(),
+                  new Promise((_,reject)=>setTimeout(()=>reject(Error('GPU timeout')),10000))])''')
+                results.append({'name':name,'passed':True,'headless':headless,'args':common+args,'result':result})
+              except Exception as error:results.append({'name':name,'passed':False,'error':str(error)})
+              finally:
+                if browser:browser.close()
+              print(json.dumps(results[-1]),flush=True)
+          server.shutdown()
+          open('artifacts/canvas-backends.json','w').write(json.dumps(results,indent=2))
+          PY
+          xvfb-run -a python /tmp/canvas-probe.py > artifacts/canvas-probe.log 2>&1
+          cat artifacts/canvas-backends.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: canvas-diagnostic
+          path: artifacts/
