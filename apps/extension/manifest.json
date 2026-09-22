@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Shiny Engine — Local Media Enhancement",
+  "description": "Local GPU spatial enhancement for supported HTML5 video, files and explicitly captured tabs. Not DLSS or generative AI.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "optional_permissions": ["tabCapture", "nativeMessaging"],
+  "action": { "default_popup": "apps/extension/popup.html", "default_title": "Shiny Engine" },
+  "background": { "service_worker": "apps/extension/background.js", "type": "module" },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'" },
+  "web_accessible_resources": [{
+    "resources": ["packages/gpu-web/renderer.js", "packages/gpu-web/scheduler.js", "packages/contracts/index.js"],
+    "matches": ["https://*/*", "http://*/*"]
+  }]
+}

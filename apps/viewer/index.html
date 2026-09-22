@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Local-first media enhancement. Compare images and videos with real GPU spatial processing. Nothing is uploaded.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Shiny Engine · Local media lab</title>
+  <link rel="icon" type="image/svg+xml" href="/apps/viewer/icon.svg">
+  <link rel="stylesheet" href="/apps/viewer/styles.css">
+  <script type="module" src="/apps/viewer/viewer.js"></script>
+</head>
+<body>
+  <a class="skip" href="#workspace">Skip to workspace</a>
+  <header class="topbar">
+    <a class="brand" href="/index.html" aria-label="Shiny Engine home"><span class="brand-mark" aria-hidden="true">S</span><span>shiny<span class="brand-light">engine</span></span><span class="version">ALPHA 0.1</span></a>
+    <nav aria-label="Main"><a href="#workspace" class="active">Media lab</a><a href="#native-panel">Desktop companion</a><a href="#diagnostics">Diagnostics</a></nav>
+    <span class="privacy"><span class="dot"></span> On-device. Always.</span>
+  </header>
+  <main>
+    <section class="intro">
+      <div><p class="eyebrow">LOCAL PROCESSING / NO UPLOADS</p><h1>A clearer view.<br><span>Not a different reality.</span></h1><p class="lede">Refine your images and videos with restrained GPU enhancement.<br>Compare every change. Keep control of the original.</p></div>
+      <div class="intro-meta"><span class="status-pill" id="backend-pill">Checking graphics support</span><p>Spatial enhancement, not DLSS or generative AI.</p></div>
+    </section>
+    <section class="workspace" id="workspace" aria-label="Media enhancement workspace">
+      <div class="lab">
+        <div class="lab-toolbar"><div><span class="dot" id="session-dot"></span><strong id="source-name">Synthetic detail chart</strong><small id="dimensions">LOCAL FIXTURE</small></div><button id="stop" class="danger-quiet" disabled>Stop session</button></div>
+        <div class="stage" id="stage" aria-busy="true">
+          <div class="canvas-mount" id="canvas-mount"></div>
+          <div class="comparison-line" id="comparison-line" aria-hidden="true"><span>↔</span></div>
+          <span class="stage-tag left" id="original-tag">ORIGINAL</span><span class="stage-tag right" id="enhanced-tag">ENHANCED</span>
+          <div class="empty" id="empty" hidden><strong>Your original is safe.</strong><p id="empty-text">Open a file or choose a window to begin.</p></div>
+        </div>
+        <div class="comparison-control"><label for="split">Compare</label><input id="split" type="range" min="0" max="100" value="50" aria-label="Original and enhanced comparison divider"><output id="split-value" for="split">50 / 50</output><button id="bypass" class="quiet" aria-pressed="false" title="Toggle original (B)">Original only</button></div>
+        <video id="source-video" controls playsinline hidden aria-label="Source playback controls"></video>
+        <div class="source-actions"><label class="button primary" for="file"><span aria-hidden="true">＋</span> Open image or video</label><input id="file" type="file" accept="image/png,image/jpeg,image/webp,image/avif,video/mp4,video/webm,video/ogg" class="file-input"><button id="share" class="button">Share a window</button><button id="sample" class="quiet">Reset to demo</button><button id="export" class="button export">Export PNG <span aria-hidden="true">↗</span></button></div>
+        <p class="status" id="status" role="status" aria-live="polite">Initializing local graphics…</p>
+      </div>
+      <aside class="controls" aria-label="Enhancement controls">
+        <div class="panel-heading"><span class="eyebrow">PROCESSING</span><span class="live-badge">LOCAL</span></div>
+        <h2>Make the subtle<br>difference.</h2><p class="muted">A spatial filter sharpens existing edges. It does not invent or recover missing detail.</p>
+        <fieldset class="presets"><legend>Preset</legend><button data-preset="balanced" aria-pressed="true">Balanced</button><button data-preset="soft" aria-pressed="false">Soft</button><button data-preset="detail" aria-pressed="false">Detail</button></fieldset>
+        <div class="slider-row"><label for="strength">Detail strength</label><output id="strength-value" for="strength">40%</output><input type="range" id="strength" min="0" max="100" value="40"><small>Bounded sharpening to restrain edge halos.</small></div>
+        <div class="slider-row"><label for="denoise">Smoothing</label><output id="denoise-value" for="denoise">8%</output><input type="range" id="denoise" min="0" max="50" value="8"><small>Gentle smoothing in low-contrast regions.</small></div>
+        <div class="select-row"><label for="scale">Output scale</label><select id="scale"><option value="1">Native · 1×</option><option value="1.5">Larger · 1.5×</option><option value="2">Larger · 2×</option></select><small>Spatial resampling, not AI super-resolution. Output is capped at 8.3 megapixels.</small></div>
+        <div class="locked"><span class="eyebrow">RESEARCH BACKEND</span><h3>Neural rendering <span>LOCKED</span></h3><p>No proprietary weights or NVIDIA DLLs are bundled. Model rights, native integration and parity tests remain required.</p></div>
+      </aside>
+    </section>
+    <section class="bottom-grid">
+      <article id="diagnostics" class="card"><p class="eyebrow">TRANSPARENT PERFORMANCE</p><h2>Measure. Don’t assume.</h2><div class="metrics"><div><span id="metric-backend">—</span><small>Backend</small></div><div><span id="metric-p95">—</span><small>p95 frame completion</small></div><div><span id="metric-count">0</span><small>Samples retained</small></div></div><p class="muted">CPU submission-to-GPU-completion timings, including browser scheduling. These are not hardware GPU timestamps or certified desktop latency.</p><button id="benchmark" class="button">Measure 60 still frames</button><button id="report" class="quiet">Save diagnostic report</button></article>
+      <article id="native-panel" class="card"><p class="eyebrow">OPTIONAL WINDOWS COMPANION</p><h2>Beyond the browser.</h2><p class="muted">The native companion captures a user-selected source into a separate SDR preview. A click-through desktop overlay and DLSS integration are not enabled in this release.</p><div class="native-actions"><button id="connect-native" class="button">Connect companion</button><button id="pick-native" class="button" disabled>Choose source</button><button id="stop-native" class="danger-quiet" disabled>Stop native</button></div><p class="status" id="native-status" role="status">Install the extension and the Windows companion to connect. No capture starts automatically.</p></article>
+    </section>
+    <footer><span>SHINY ENGINE <span class="muted">/ Independent software. Not affiliated with NVIDIA.</span></span><span>SDR FIRST · EXPLICIT CONSENT · ORIGINAL ALWAYS AVAILABLE</span></footer>
+  </main>
+</body>
+</html>
