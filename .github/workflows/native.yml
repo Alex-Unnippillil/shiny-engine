@@ -1,0 +1,16 @@
+name: Native Windows
+on:
+  push:
+    branches: [main, feat/local-media-enhancement]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: cmake -S native/windows -B build/native -A x64
+      - run: cmake --build build/native --config Release --parallel
+      - run: ctest --test-dir build/native -C Release --output-on-failure
