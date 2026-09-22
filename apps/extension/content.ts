@@ -16,6 +16,8 @@
       const video = candidates.sort((a, b) => b.clientWidth * b.clientHeight - a.clientWidth * a.clientHeight)[0];
       if (!video) throw new Error('No supported top-frame video with native controls. Use separate tab capture for this player.');
       if (video.mediaKeys || getComputedStyle(video).transform !== 'none') throw new Error('Protected or transformed video is unsupported. The original is unchanged.');
+      const captionsVisible = () => Array.from(video.textTracks).some(track => track.mode === 'showing');
+      if (captionsVisible()) throw new Error('Native captions are visible. Use the separate viewer to preserve them.');
       const parent = video.parentElement;
       if (!parent || parent === document.body) throw new Error('This player layout needs the separate viewer.');
       const [{ createRenderer }, { FrameLoop }, { DEFAULTS }] = await Promise.all([
@@ -38,14 +40,17 @@
         canvas.remove(); stopButton.remove(); parent.style.position = originalPosition;
         document.removeEventListener('fullscreenchange', fullscreen); window.removeEventListener('pagehide', cleanup);
         video.removeEventListener('emptied', cleanup); video.removeEventListener('error', cleanup);
+        video.textTracks.removeEventListener('change', captions); video.textTracks.removeEventListener('addtrack', captions);
         renderer.release();
       };
       const failed = () => cleanup();
+      const captions = () => { if (captionsVisible()) cleanup(); };
       const loop = new FrameLoop(video, () => renderer.render(video, { ...DEFAULTS, split: 0 }), failed);
       const place = () => {
         const vs = getComputedStyle(video);
         if (!video.isConnected || vs.transform !== 'none') { cleanup(); return; }
         // Limit to contained native-player layouts. Preserve the native control strip.
+        canvas.style.objectFit = vs.objectFit; canvas.style.objectPosition = vs.objectPosition;
         canvas.style.left = `${video.offsetLeft}px`; canvas.style.top = `${video.offsetTop}px`;
         canvas.style.width = `${video.offsetWidth}px`; canvas.style.height = `${video.offsetHeight}px`;
       };
@@ -55,9 +60,12 @@
       try {
         await renderer.render(video, { ...DEFAULTS, split: 0 }); // Access check before covering any pixels.
         if (requestEpoch !== epoch) { cleanup(); return; }
+        if (!video.isConnected || video.offsetParent !== parent) throw new Error('This player positioning is unsupported. Use the separate viewer.');
+        if (captionsVisible()) throw new Error('Captions became visible. The original is unchanged.');
         parent.append(canvas, stopButton); place(); resize.observe(video); observer.observe(document.documentElement, { subtree: true, childList: true });
         stopButton.addEventListener('click', cleanup); document.addEventListener('fullscreenchange', fullscreen);
         window.addEventListener('pagehide', cleanup, { once: true }); video.addEventListener('emptied', cleanup); video.addEventListener('error', cleanup);
+        video.textTracks.addEventListener('change', captions); video.textTracks.addEventListener('addtrack', captions);
         release = cleanup; loop.start(); reply({ ok: true, message: `${renderer.label} active. Audio and native controls remain with the original player.` });
       } catch (error) { cleanup(); throw error; }
     })().catch(error => reply({ ok: false, error: error instanceof Error ? error.message : 'This video cannot be processed.' }));
