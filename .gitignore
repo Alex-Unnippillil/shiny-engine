@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+artifacts/
+__pycache__/
+*.dll
+*.exe
+*.onnx
+*.safetensors
+*.pt
+*.bin
+.env*

@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "backends": [
+    { "id": "spatial-webgpu-v1", "kind": "spatial", "provenance": "Original Shiny Engine WGSL", "license": "MIT", "weights": null, "enabled": true },
+    { "id": "spatial-webgl2-v1", "kind": "spatial", "provenance": "Original Shiny Engine GLSL", "license": "MIT", "weights": null, "enabled": true },
+    { "id": "spatial-d3d11-v1", "kind": "spatial", "provenance": "Original Shiny Engine HLSL", "license": "MIT", "weights": null, "enabled": true, "hardwareValidated": false },
+    { "id": "nr-experimental", "kind": "generative", "enabled": false, "weights": null, "reason": "Model rights, native integration and independent parity are not established." },
+    { "id": "animation-neural", "kind": "restoration", "enabled": false, "weights": null, "reason": "No animation model has been selected or approved." },
+    { "id": "photo-restoration", "kind": "restoration", "enabled": false, "weights": null, "reason": "No photo restoration model has been selected or approved." }
+  ]
+}

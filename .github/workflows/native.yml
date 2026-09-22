@@ -1,0 +1,30 @@
+name: Native Windows
+on:
+  push:
+    branches: [main, feat/local-media-enhancement]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: cmake -S native/windows -B build/native -A x64
+      - run: cmake --build build/native --config Release --parallel
+      - run: ctest --test-dir build/native -C Release --output-on-failure
+      - name: Package unsigned alpha
+        run: |
+          New-Item -ItemType Directory artifacts/native -Force | Out-Null
+          Copy-Item build/native/Release/shiny-native.exe artifacts/native/
+          Copy-Item native/windows/*.ps1 artifacts/native/
+          Copy-Item LICENSE,THIRD_PARTY_NOTICES.md artifacts/native/
+          Get-FileHash artifacts/native/shiny-native.exe -Algorithm SHA256 | Format-List | Out-File artifacts/native/SHA256.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: shiny-engine-windows-unsigned-alpha
+          path: artifacts/native/
+          if-no-files-found: error
