@@ -1,6 +1,7 @@
 """Real Chromium/WebGL integration; no hardware performance certification.
 Run after npm run build. Requires playwright; uses installed chromium or Playwright's browser.
 """
+import base64
 import json
 import os
 from pathlib import Path
@@ -79,7 +80,35 @@ try:
         assert report['samples'] == 60 and report['sourceNamesIncluded'] is False
         assert 'alpha-fixture' not in json.dumps(report)
         results.append('measured 60-frame report without filenames or media')
-        page.evaluate("navigator.mediaDevices.getDisplayMedia = async () => { throw new DOMException('User cancelled capture', 'NotAllowedError'); }")
+        # A generated moving fixture exercises decoding, native playback and source-driven rendering.
+        encoded = page.evaluate("""async () => {
+          const c = document.createElement('canvas'); c.width = 320; c.height = 180;
+          const g = c.getContext('2d'); const stream = c.captureStream(15);
+          const chunks = []; const recorder = new MediaRecorder(stream, {mimeType: 'video/webm;codecs=vp8'});
+          const finished = new Promise(resolve => { recorder.onstop = resolve; });
+          recorder.ondataavailable = e => { if(e.data.size) chunks.push(e.data); };
+          recorder.start(); let i = 0;
+          const timer = setInterval(() => {
+            g.fillStyle = '#203c48'; g.fillRect(0,0,320,180);
+            g.fillStyle = '#a5e9c6'; g.fillRect((i*7)%280,45,40,90); i++;
+          }, 60);
+          await new Promise(resolve => setTimeout(resolve, 2200));
+          clearInterval(timer); recorder.stop(); await finished; stream.getTracks().forEach(t => t.stop());
+          const bytes = new Uint8Array(await new Blob(chunks, {type:'video/webm'}).arrayBuffer());
+          let binary = ''; for (const b of bytes) binary += String.fromCharCode(b);
+          return btoa(binary);
+        }""")
+        page.locator('#file').set_input_files({'name': 'motion-fixture.webm', 'mimeType': 'video/webm', 'buffer': base64.b64decode(encoded)})
+        expect(page.locator('#dimensions')).to_have_text('320 × 180')
+        page.wait_for_timeout(400)
+        assert int(page.locator('#metric-count').inner_text()) > 1, 'Video must process multiple source frames.'
+        playback = page.locator('#source-video').evaluate('(v) => ({time:v.currentTime, muted:v.muted, controls:v.controls})')
+        assert playback['time'] > 0 and playback['muted'] is False and playback['controls'] is True
+        page.locator('#source-video').evaluate('(v) => { v.pause(); v.currentTime = 0.5; }')
+        page.keyboard.press('Escape')
+        assert page.locator('#canvas-mount canvas').count() == 0
+        results.append('local moving WebM decoding, multiple processed frames, playback controls and cleanup')
+        page.evaluate("() => { navigator.mediaDevices.getDisplayMedia = async () => { throw new DOMException('User cancelled capture', 'NotAllowedError'); }; }")
         page.locator('#share').click()
         expect(page.locator('#status')).to_contain_text('User cancelled')
         assert page.locator('#canvas-mount canvas').count() == 0
