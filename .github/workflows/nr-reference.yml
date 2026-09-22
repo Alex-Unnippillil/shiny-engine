@@ -1,0 +1,28 @@
+name: NR reference audit
+on:
+  push:
+    branches: [feat/experimental-nr-live]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: maanHimself/OpenDLSS-NR
+          ref: 9d08f4184bbcb9d858e2fb7a7834ec0837a9d2f1
+          persist-credentials: false
+      - name: Archive pinned reference code only
+        run: |
+          test "$(git rev-parse HEAD)" = "9d08f4184bbcb9d858e2fb7a7834ec0837a9d2f1"
+          mkdir -p artifacts
+          git archive --format=zip --output=artifacts/opendlss-reference-source.zip HEAD LICENSE NOTICE ports/browser-webgpu/src ports/browser-webgpu/shaders ports/browser-webgpu/demo
+          sha256sum artifacts/opendlss-reference-source.zip > artifacts/SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: opendlss-reference-source
+          path: artifacts/
+          if-no-files-found: error
