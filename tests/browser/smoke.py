@@ -68,6 +68,7 @@ try:
         page.locator('#file').set_input_files({'name': 'unsafe.svg', 'mimeType': 'image/svg+xml', 'buffer': b'<svg />'})
         assert 'Choose a PNG' in page.locator('#status').inner_text()
         results.append('unsupported-file rejection preserves existing session')
+        page.locator('#reset').click()
         page.locator('#sample').click()
         expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
         expect(page.locator('#dimensions')).to_have_text('960 × 540')
@@ -110,9 +111,9 @@ try:
         results.append('local moving WebM decoding, multiple processed frames, playback controls and cleanup')
         page.evaluate("() => { navigator.mediaDevices.getDisplayMedia = async () => { throw new DOMException('User cancelled capture', 'NotAllowedError'); }; }")
         page.locator('#share').click()
-        expect(page.locator('#status')).to_contain_text('User cancelled')
+        expect(page.locator('#status')).to_contain_text('cancelled or not permitted')
         assert page.locator('#canvas-mount canvas').count() == 0
-        results.append('capture denial stops the previous session without a stuck canvas')
+        results.append('capture denial leaves the stopped workspace usable')
         for _ in range(5):
             page.locator('#sample').click()
             expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
@@ -125,9 +126,140 @@ try:
         page.set_viewport_size({'width': 390, 'height': 844})
         assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Mobile horizontal overflow'
         page.screenshot(path=str(OUT / 'lab-mobile.png'), full_page=True)
-        page.locator('#connect-native').click()
+        expect(page.locator('#connect-native')).to_be_disabled()
         assert 'installed extension' in page.locator('#native-status').inner_text()
         results.append('390px mobile layout and honest unavailable-native state')
+        # Presets and comparison modes round-trip through storage, not just button styling.
+        page.set_viewport_size({'width': 1440, 'height': 1000})
+        page.locator('[data-preset=detail]').click()
+        expect(page.locator('#strength')).to_have_value('65')
+        page.reload()
+        expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
+        expect(page.locator('[data-preset=detail]')).to_have_attribute('aria-pressed', 'true')
+        expect(page.locator('#strength')).to_have_value('65')
+        page.locator('#strength').evaluate("e => { e.value = '51'; e.dispatchEvent(new Event('input', {bubbles:true})); }")
+        expect(page.locator('#preset-name')).to_have_text('Custom adjustments')
+        assert page.locator('[data-preset][aria-pressed=true]').count() == 0
+        page.locator('[data-view=enhanced]').click()
+        expect(page.locator('#split')).to_have_value('0')
+        page.locator('[data-view=split]').click()
+        expect(page.locator('#split')).to_have_value('50')
+        divider = page.locator('#comparison-line')
+        divider.focus(); page.keyboard.press('ArrowRight')
+        expect(page.locator('#split')).to_have_value('51')
+        page.keyboard.press('Shift+ArrowRight')
+        expect(page.locator('#split')).to_have_value('61')
+        box = page.locator('#stage').bounding_box()
+        handle = divider.bounding_box()
+        page.mouse.move(handle['x'] + handle['width']/2, handle['y'] + handle['height']/2)
+        page.mouse.down(); page.mouse.move(box['x']+box['width']*.8, box['y']+box['height']/2, steps=5); page.mouse.up()
+        assert 78 <= int(page.locator('#split').input_value()) <= 82
+        results.append('persistent presets, custom state, three views and real pointer/keyboard divider')
+        # Escape closes help before it can stop the active media.
+        page.locator('#help').click()
+        expect(page.locator('#help-dialog')).to_be_visible()
+        page.keyboard.press('Escape')
+        expect(page.locator('#help-dialog')).not_to_be_visible()
+        expect(page.locator('#canvas-mount canvas')).to_have_count(1)
+        expect(page.locator('#help')).to_be_focused()
+        results.append('help modal focus and Escape leave the media session intact')
+        # Decode failures and denied capture must preserve the working source.
+        page.evaluate("() => { navigator.mediaDevices.getDisplayMedia = async () => { throw new DOMException('User cancelled capture', 'NotAllowedError'); }; }")
+        previous_name = page.locator('#source-name').inner_text()
+        page.locator('#file').set_input_files({'name': 'broken.png', 'mimeType': 'image/png', 'buffer': b'not-a-real-image'})
+        expect(page.locator('#status')).to_contain_text('could not be opened')
+        expect(page.locator('#source-name')).to_have_text(previous_name)
+        expect(page.locator('#canvas-mount canvas')).to_have_count(1)
+        page.locator('#share').click()
+        expect(page.locator('#status')).to_contain_text('current media is unchanged')
+        expect(page.locator('#source-name')).to_have_text(previous_name)
+        expect(page.locator('#canvas-mount canvas')).to_have_count(1)
+        results.append('corrupt image and capture denial preserve the active preview')
+        # A cancelled picker that later returns a stream must not leave capture running.
+        page.evaluate("""() => {
+          navigator.mediaDevices.getDisplayMedia = () => new Promise(resolve => { window.finishPicker = resolve; });
+        }""")
+        page.locator('#share').click()
+        expect(page.locator('#loading-banner')).to_be_visible()
+        page.locator('#cancel-operation').click()
+        expect(page.locator('#loading-banner')).not_to_be_visible()
+        stopped = page.evaluate("""async () => {
+          const c = document.createElement('canvas'); c.width=32; c.height=32;
+          const stream = c.captureStream(10); window.finishPicker(stream);
+          await new Promise(resolve=>setTimeout(resolve,100));
+          return stream.getTracks().every(t=>t.readyState==='ended');
+        }""")
+        assert stopped
+        expect(page.locator('#source-name')).to_have_text(previous_name)
+        results.append('late capture after cancellation is released without replacing the source')
+        # Corrupt video failure uses a candidate element and must not empty the active player.
+        page.locator('#file').set_input_files({'name': 'broken.webm', 'mimeType': 'video/webm', 'buffer': b'broken'})
+        expect(page.locator('#status')).to_contain_text('cannot decode', timeout=20000)
+        expect(page.locator('#source-name')).to_have_text(previous_name)
+        # Newest source wins even when an older image decode finishes out of order.
+        page.evaluate("""() => {
+          const original = HTMLImageElement.prototype.decode; let first = true;
+          HTMLImageElement.prototype.decode = async function() {
+            await original.call(this);
+            if (first) { first = false; await new Promise(resolve=>{window.finishDecode = resolve;}); }
+          };
+        }""")
+        page.locator('#file').set_input_files({'name': 'slow.png', 'mimeType': 'image/png', 'buffer': png(100,100)})
+        page.wait_for_timeout(150)
+        page.locator('#file').set_input_files({'name': 'latest.png', 'mimeType': 'image/png', 'buffer': png(160,90)})
+        expect(page.locator('#source-name')).to_have_text('latest.png')
+        page.evaluate('() => { window.finishDecode?.(); }')
+        page.wait_for_timeout(150)
+        expect(page.locator('#source-name')).to_have_text('latest.png')
+        expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
+        results.append('invalid video preserves source and newest image wins out-of-order loading')
+        # PNG export offers explicit content selection and preserves displayed comparison.
+        for view in ['original', 'enhanced', 'comparison']:
+            page.locator('#export-view').select_option(view)
+            with page.expect_download() as item:
+                page.locator('#export').click()
+            assert item.value.suggested_filename == f'latest-{view}.png'
+            expect(page.locator('#stage')).to_have_attribute('aria-busy','false')
+        results.append('original, enhanced and current-view PNG exports with safe source-derived names')
+        page.locator('#reset').click(); page.locator('#sample').click()
+        expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
+        page.locator('#benchmark').click()
+        page.locator('#cancel-operation').click()
+        expect(page.locator('#status')).to_contain_text('Measurement cancelled')
+        expect(page.locator('#benchmark')).to_be_enabled()
+        expect(page.locator('#export')).to_be_enabled()
+        results.append('measurement cancellation restores adjustment and export controls')
+        # Single-preview video transport and paused rendering behavior.
+        page.locator('#file').set_input_files({'name':'motion.webm','mimeType':'video/webm','buffer':base64.b64decode(encoded)})
+        expect(page.locator('#transport')).to_be_visible()
+        page.locator('#play').click()
+        expect(page.locator('#play')).to_have_text('Play')
+        page.wait_for_timeout(400)
+        count = page.locator('#metric-count').inner_text()
+        page.wait_for_timeout(250)
+        assert page.locator('#metric-count').inner_text() == count, 'Paused media must not keep consuming frames'
+        page.locator('#seek').evaluate("e => { e.value = '0.7'; e.dispatchEvent(new Event('input', {bubbles:true})); }")
+        page.locator('#rate').select_option('1.5')
+        assert page.locator('#source-video').evaluate('(v)=>v.playbackRate') == 1.5
+        page.locator('#volume').evaluate("e => { e.value = '35'; e.dispatchEvent(new Event('input', {bubbles:true})); }"); page.locator('#mute').click()
+        assert page.locator('#source-video').evaluate('(v)=>v.volume===0.35 && v.muted')
+        expect(page.locator('#source-slot video')).to_be_hidden()
+        page.locator('#play').click(); expect(page.locator('#play')).to_have_text('Pause')
+        page.wait_for_timeout(300)
+        assert int(page.locator('#metric-count').inner_text()) > int(count)
+        page.locator('#stop').click()
+        expect(page.locator('#transport')).to_be_hidden()
+        expect(page.locator('#empty-open')).to_be_visible()
+        results.append('video play/pause/seek/rate/audio, idle pause and empty-state recovery')
+        page.locator('#empty-demo').click()
+        expect(page.locator('#stage')).to_have_attribute('aria-busy','false')
+        page.screenshot(path=str(OUT / 'lab-desktop.png'), full_page=True)
+        for width in [320,390,768]:
+            page.set_viewport_size({'width':width,'height':844})
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'Overflow at {width}px'
+        page.set_viewport_size({'width':390,'height':844})
+        page.screenshot(path=str(OUT / 'lab-mobile.png'),full_page=True)
+        results.append('320px, 390px and 768px responsive workspace without horizontal overflow')
         assert not errors, errors
         browser.close()
         # Install the actual MV3 package and exercise its privileged viewer entry point.
@@ -139,6 +271,9 @@ try:
             extension_id = worker.url.split('/')[2]
             popup = context.new_page()
             popup.goto(f'chrome-extension://{extension_id}/apps/extension/popup.html')
+            expect(popup.locator('#inline')).to_be_disabled()
+            expect(popup.locator('#capture')).to_be_disabled()
+            popup.screenshot(path=str(OUT / 'extension-popup.png'))
             with context.expect_page() as opened:
                 popup.locator('#lab').click()
             lab = opened.value

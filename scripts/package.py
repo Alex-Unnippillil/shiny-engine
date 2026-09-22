@@ -6,7 +6,7 @@ root = Path(__file__).resolve().parents[1]
 out = root / 'artifacts'
 out.mkdir(exist_ok=True)
 for kind in ('extension', 'site'):
-    target = out / f'shiny-engine-{kind}-0.1.0.zip'
+    target = out / f'shiny-engine-{kind}-0.2.0.zip'
     with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for file in sorted((root / 'dist' / kind).rglob('*')):
             if file.is_file():
