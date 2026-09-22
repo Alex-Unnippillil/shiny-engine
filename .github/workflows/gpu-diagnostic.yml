@@ -26,33 +26,35 @@ jobs:
             def log_message(self,*args): pass
           server=ThreadingHTTPServer(('127.0.0.1',4190),Handler)
           threading.Thread(target=server.serve_forever,daemon=True).start()
-          common=['--no-sandbox','--enable-unsafe-webgpu','--enable-unsafe-swiftshader']
-          sw=['--use-gl=angle','--use-angle=swiftshader']
+          common=['--no-sandbox','--enable-unsafe-webgpu','--enable-unsafe-swiftshader','--use-gl=angle','--use-angle=swiftshader']
           cases=[
-            ('swangle',True,sw),
-            ('swangle-vulkan',True,sw+['--enable-features=Vulkan,VulkanFromANGLE','--use-vulkan=swiftshader','--disable-vulkan-surface']),
-            ('graphite',True,sw+['--enable-features=SkiaGraphite','--skia-graphite-backend=dawn-vulkan']),
-            ('headed-swangle',False,sw),
-            ('headed-mesa',False,['--use-gl=angle','--use-angle=gl','--enable-features=Vulkan']),
+            ('shared-vulkan',True,['--enable-features=Vulkan,VulkanFromANGLE','--use-vulkan=swiftshader','--disable-vulkan-surface']),
+            ('shared-vulkan-default',True,['--enable-features=Vulkan,VulkanFromANGLE']),
+            ('headed-shared-vulkan',False,['--enable-features=Vulkan,VulkanFromANGLE','--use-vulkan=swiftshader']),
           ]
           results=[]
           with sync_playwright() as p:
             for name,headless,args in cases:
-              browser=None
+              browser=None;messages=[]
               try:
                 browser=p.chromium.launch(headless=headless,channel='chromium',args=common+args)
-                page=browser.new_page();page.goto('http://127.0.0.1:4190')
+                page=browser.new_page();page.on('console',lambda m:messages.append(m.text));page.goto('http://127.0.0.1:4190')
                 result=page.evaluate('''async () => await Promise.race([
                   (async()=>{const a=await navigator.gpu.requestAdapter();if(!a)throw Error('No adapter');
-                    const d=await a.requestDevice();const c=document.createElement('canvas');c.width=64;c.height=48;document.body.append(c);
-                    const x=c.getContext('webgpu');x.configure({device:d,format:navigator.gpu.getPreferredCanvasFormat()});
-                    const e=d.createCommandEncoder();const pass=e.beginRenderPass({colorAttachments:[{view:x.getCurrentTexture().createView(),loadOp:'clear',storeOp:'store',clearValue:{r:1,g:0,b:0,a:1}}]});pass.end();d.queue.submit([e.finish()]);await d.queue.onSubmittedWorkDone();
-                    const read=document.createElement('canvas');read.width=64;read.height=48;const y=read.getContext('2d');y.drawImage(c,0,0);const pixel=Array.from(y.getImageData(0,0,1,1).data);
-                    x.unconfigure();d.destroy();if(pixel.join(',')!=='255,0,0,255')throw Error('Wrong output '+pixel);
-                    return {pixel,adapter:{vendor:a.info.vendor,architecture:a.info.architecture,description:a.info.description}};})(),
+                    const d=await a.requestDevice();d.addEventListener('uncapturederror',e=>console.error(e.error.message));d.pushErrorScope('validation');
+                    const c=document.createElement('canvas');c.width=64;c.height=48;document.body.append(c);
+                    const x=c.getContext('webgpu'),format=navigator.gpu.getPreferredCanvasFormat();x.configure({device:d,format,usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC});
+                    const t=x.getCurrentTexture(), rb=d.createBuffer({size:256,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
+                    const e=d.createCommandEncoder();const pass=e.beginRenderPass({colorAttachments:[{view:t.createView(),loadOp:'clear',storeOp:'store',clearValue:{r:1,g:0,b:0,a:1}}]});pass.end();
+                    e.copyTextureToBuffer({texture:t},{buffer:rb,bytesPerRow:256},[1,1]);d.queue.submit([e.finish()]);
+                    const read=()=>{const q=document.createElement('canvas');q.width=64;q.height=48;const y=q.getContext('2d');y.drawImage(c,0,0);return Array.from(y.getImageData(0,0,1,1).data);};
+                    const immediate=read();await d.queue.onSubmittedWorkDone();const later=read();
+                    await rb.mapAsync(GPUMapMode.READ);const gpuBytes=Array.from(new Uint8Array(rb.getMappedRange()).slice(0,4));rb.unmap();
+                    const error=await d.popErrorScope();x.unconfigure();rb.destroy();d.destroy();
+                    return {immediate,later,gpuBytes,format,error:error?.message||null,adapter:{vendor:a.info.vendor,architecture:a.info.architecture,description:a.info.description}};})(),
                   new Promise((_,reject)=>setTimeout(()=>reject(Error('GPU timeout')),10000))])''')
-                results.append({'name':name,'passed':True,'headless':headless,'args':common+args,'result':result})
-              except Exception as error:results.append({'name':name,'passed':False,'error':str(error)})
+                results.append({'name':name,'headless':headless,'args':common+args,'result':result,'messages':messages})
+              except Exception as error:results.append({'name':name,'error':str(error),'messages':messages})
               finally:
                 if browser:browser.close()
               print(json.dumps(results[-1]),flush=True)
