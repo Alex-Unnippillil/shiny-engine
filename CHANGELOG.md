@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — VLC library-management foundation
+
+- Added an independent, read-only Windows x64 library auditor: fixed VLC/DLSS/Streamline slots, bounded PE metadata, SHA-256, offline Authenticode status and path-redacted JSON. Inspection never loads a candidate or modifies installed VLC.
+- Added portable policy/parser coverage and Windows filesystem, execution-canary and privacy tests, with a dedicated utility build/artifact workflow.
+- Added [the codebase analysis and staged development plan](docs/VLC_LIBRARY_MANAGEMENT_PLAN.md) for trusted catalogs, video backends, cold activation and rollback.
+- DLL swapping, executable import, GUI management and a new enhancement backend are **not implemented** by this milestone. Existing 0.7.0 player installers and local research behavior remain unchanged. See [the audit guide](native/library-manager/README.md).
+
 ## 0.7.0 — local research and release hardening
 
 - Added a distinct opt-in local OpenDLSS-NR research route for authorized user-supplied model data. Curated production approvals remain unchanged.

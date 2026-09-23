@@ -1,0 +1,47 @@
+name: VLC library audit
+on:
+  pull_request:
+  push:
+    branches: [main, 'feat/vlc-library-audit']
+permissions:
+  contents: read
+jobs:
+  library-audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Configure portable policy tests
+        if: runner.os != 'Windows'
+        run: cmake -S native/library-manager -B build/library-audit -DCMAKE_BUILD_TYPE=Release
+      - name: Configure Windows x64 utility
+        if: runner.os == 'Windows'
+        run: cmake -S native/library-manager -B build/library-audit -A x64
+      - name: Compile with warnings as errors
+        run: cmake --build build/library-audit --config Release --parallel
+      - name: Policy and Windows audit integration tests
+        run: ctest --test-dir build/library-audit -C Release --output-on-failure
+      - name: Package read-only Windows utility
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force artifacts/library-audit | Out-Null
+          Copy-Item build/library-audit/Release/ShinyLibraryAudit.exe artifacts/library-audit/
+          Copy-Item native/library-manager/README.md artifacts/library-audit/
+          Copy-Item docs/VLC_LIBRARY_MANAGEMENT_PLAN.md artifacts/library-audit/
+          Copy-Item LICENSE artifacts/library-audit/
+          @{ schemaVersion = 1; sourceSha = (git rev-parse HEAD).Trim(); signed = $false; readOnly = $true; swapSupported = $false } | ConvertTo-Json | Set-Content artifacts/library-audit/build-info.json
+          Get-ChildItem artifacts/library-audit -File | Sort-Object Name | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() + '  ' + $_.Name } | Set-Content artifacts/library-audit/SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: runner.os == 'Windows'
+        with:
+          name: ShinyLibraryAudit-Windows-x64
+          path: artifacts/library-audit/
+          if-no-files-found: error
