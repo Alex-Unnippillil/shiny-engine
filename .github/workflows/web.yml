@@ -45,9 +45,10 @@ jobs:
         timeout-minutes: 6
         env:
           DEBUG: pw:browser
+          SHINY_GPU_HEADED: '1'
         run: |
           mkdir -p artifacts
-          if npm run test:browser > artifacts/browser-test.log 2>&1; then
+          if xvfb-run -a npm run test:browser > artifacts/browser-test.log 2>&1; then
             tail -80 artifacts/browser-test.log
           else
             tail -100 artifacts/browser-test.log

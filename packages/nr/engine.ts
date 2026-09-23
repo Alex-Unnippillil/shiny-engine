@@ -203,6 +203,26 @@ export class FramePipeline {
     try { const encoder = this.device.createCommandEncoder(); this.presentTo(encoder); this.device.queue.submit([encoder.finish()]); await this.device.queue.onSubmittedWorkDone(); }
     finally { const issue = await this.device.popErrorScope(); if (issue) throw new Error(issue.message); }
   }
+  /** Snapshot the freshly submitted canvas in the same task, before automatic texture expiry. */
+  async exportPNG(): Promise<Blob> {
+    if (this.lost) throw new Error(this.lost);
+    this.device.pushErrorScope('validation');
+    try {
+      const encoder = this.device.createCommandEncoder(); this.presentTo(encoder);
+      this.device.queue.submit([encoder.finish()]);
+      // Do not await GPU completion before asking the canvas to copy its bitmap.
+      const canvas = this.canvas;
+      const image = 'convertToBlob' in canvas
+        ? canvas.convertToBlob({ type: 'image/png' })
+        : new Promise<Blob>((resolve, reject) => canvas.toBlob(
+          blob => blob ? resolve(blob) : reject(new Error('PNG snapshot unavailable.')), 'image/png'));
+      const [blob] = await Promise.all([image, this.device.queue.onSubmittedWorkDone()]);
+      if (this.lost) throw new Error(this.lost);
+      return blob;
+    } finally {
+      const issue = await this.device.popErrorScope(); if (issue) throw new Error(issue.message);
+    }
+  }
   destroy() { this.upload?.destroy(); this.snapshot.destroy(); this.uniform.destroy(); this.outputUniform.destroy(); this.invalid.destroy(); this.readback.destroy(); this.context.unconfigure(); }
 }
 export class NeuralEngine {
@@ -239,6 +259,7 @@ export class NeuralEngine {
   }
   process(frame: VideoFrame | ImageBitmap, settings: Controls) { return this.frame.process(frame, settings, encoder => this.network.recorder.encode(encoder)); }
   present(settings: Controls) { return this.frame.present(settings); }
+  exportPNG() { return this.frame.exportPNG(); }
   get info() { return { dispatches: this.network.recorder.dispatchCount, activationMiB: this.network.tensors.total / 1024 ** 2,
     weightsMiB: this.model.bytesUploaded / 1024 ** 2, temporalMode: 'independent-frames', parity: 'not-reverified-on-this-device' }; }
   destroy() { this.frame.destroy(); this.network.destroy(); this.model.destroy(); this.device.destroy(); }

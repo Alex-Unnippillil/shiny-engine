@@ -1,4 +1,4 @@
-"""NR lab integration and real WebGPU wrapper tests. No model inference/parity or physical-GPU claim."""
+"""NR lab and real WebGPU wrapper tests. Synthetic residuals, not trained-model inference."""
 import hashlib
 import json
 import os
@@ -31,11 +31,12 @@ try:
     else:raise RuntimeError('NR test server did not start')
     with sync_playwright() as p:
         executable=os.environ.get('CHROMIUM_PATH') or (None if os.environ.get('CI') else shutil.which('chromium'))
-        # Use SwANGLE for browser composition and SwiftShader for Dawn independently.
-        # Forcing all Chromium composition through Vulkan can lose imported canvas surfaces.
-        browser=p.chromium.launch(executable_path=executable,channel=None if executable else 'chromium',headless=True,args=[
-            '--no-sandbox','--enable-unsafe-webgpu','--use-angle=swiftshader',
-            '--enable-unsafe-swiftshader','--use-webgpu-adapter=swiftshader'])
+        # Shared SwiftShader Vulkan device + headed Xvfb provides canvas interop in CI.
+        browser=p.chromium.launch(executable_path=executable,channel=None if executable else 'chromium',
+            headless=os.environ.get('SHINY_GPU_HEADED') != '1',args=[
+                '--no-sandbox','--enable-unsafe-webgpu','--enable-unsafe-swiftshader',
+                '--use-gl=angle','--use-angle=swiftshader',
+                '--enable-features=Vulkan,VulkanFromANGLE','--use-vulkan=swiftshader'])
         page=browser.new_page(viewport={'width':1440,'height':1050},accept_downloads=True)
         page.on('pageerror',lambda error:errors.append(str(error)))
         page.on('console',lambda message:console.append(f'{message.type}: {message.text}'))
@@ -74,7 +75,7 @@ try:
             expect(page.locator('#model-status')).to_contain_text('Metadata inspected only')
             expect(page.locator('#prepare')).to_be_disabled()
             expect(page.locator('#model-hash')).to_have_text(hashlib.sha256((folder/'manifest.json').read_bytes()).hexdigest())
-            results.append('local model metadata inspected with SHA-256; selection does not authorize inference')
+            results.append('local metadata inspected with SHA-256; selection does not authorize inference')
         page.locator('#probe').click();expect(page.locator('#gpu-status')).not_to_contain_text('Not checked',timeout=30000)
         assert any(s in page.locator('#gpu-status').inner_text() for s in ['Candidate adapter.','Unavailable.'])
         results.append('actual worker capability probe returns without enabling an unapproved model')
@@ -82,7 +83,7 @@ try:
         report=json.loads(Path(download.value.path()).read_text());assert report['frames']==0 and report['approved'] is False
         assert 'private-original' not in json.dumps(report) and report['sourceNamesIncluded'] is False
         assert report['modelInferenceValidatedHere'] is False
-        results.append('diagnostics report distinguishes adapter presence from model inference')
+        results.append('diagnostics distinguish adapter presence from model inference')
         page.screenshot(path=str(OUT/'neural-desktop.png'),full_page=True)
         for width in [320,390,768]:
             page.set_viewport_size({'width':width,'height':900})
@@ -91,8 +92,8 @@ try:
         page.locator('#unload').click();expect(page.locator('#model-info')).to_be_hidden()
         page.keyboard.press('Escape');expect(page.locator('#source-stage img')).to_have_count(0)
         expect(page.locator('#stop')).to_be_disabled()
-        results.append('320/390/768 layouts and explicit release controls remain usable')
-        # Actual GPU wrapper test with synthetic residuals, NOT trained-model inference.
+        results.append('320/390/768 layouts and release controls remain usable')
+        # Synthetic residuals exercise real GPU conversion/composition, not the trained graph.
         gpu_result=page.evaluate("""async () => {
           const {FramePipeline}=await import('/packages/nr/engine.js');
           const {SHADERS,geometryFromValid}=await import('/vendor/opendlss/api.js');
@@ -114,10 +115,14 @@ try:
           const image=await createImageBitmap(input);
           const ms=await renderer.process(image,{tone:.5,structure:.75,split:0},()=>{});image.close();
           console.info('NR GPU ImageBitmap frame completed');
-          const read=()=>{const c=document.createElement('canvas');c.width=64;c.height=48;const x=c.getContext('2d');x.drawImage(canvas,0,0);return Array.from(x.getImageData(32,24,1,1).data);};
-          const enhanced=read();
+          const read=async(r=renderer)=>{
+            const blob=await r.exportPNG();const image=await createImageBitmap(blob);
+            const c=document.createElement('canvas');c.width=64;c.height=48;const x=c.getContext('2d');
+            x.drawImage(image,0,0);image.close();return Array.from(x.getImageData(32,24,1,1).data);
+          };
+          const enhanced=await read();
           if(Math.abs(enhanced[0]-(source[0]+25.5))>4 || Math.abs(enhanced[1]-(source[1]-12.75))>4 || Math.abs(enhanced[3]-source[3])>2)throw Error('Residual/alpha mismatch: '+enhanced);
-          await renderer.present({tone:.5,structure:.75,split:1});const original=read();
+          await renderer.present({tone:.5,structure:.75,split:1});const original=await read();
           if(original.some((v,i)=>Math.abs(v-source[i])>3))throw Error('Original comparison mismatch: '+original);
           const rb=device.createBuffer({size:g.fullRows*16*4,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});
           const encoder=device.createCommandEncoder();encoder.copyBufferToBuffer(features,0,rb,0,g.fullRows*16*4);device.queue.submit([encoder.finish()]);await rb.mapAsync(GPUMapMode.READ);
@@ -129,16 +134,26 @@ try:
           }
           rb.unmap();rb.destroy();
           const frame=new VideoFrame(input,{timestamp:0});await renderer.process(frame,{tone:.5,structure:.75,split:0},()=>{});frame.close();
+          const videoPixel=await read();
+          if(videoPixel.some((v,i)=>Math.abs(v-enhanced[i])>4))throw Error('VideoFrame output mismatch: '+videoPixel);
           console.info('NR GPU VideoFrame completed');
+          const holder=document.createElement('canvas');document.body.append(holder);
+          const offscreen=holder.transferControlToOffscreen();
+          const off=await FramePipeline.create(offscreen,device,g,features,head,SHADERS);
+          const offImage=await createImageBitmap(input);await off.process(offImage,{tone:.5,structure:.75,split:0},()=>{});offImage.close();
+          const offscreenPixel=await read(off);
+          if(offscreenPixel.some((v,i)=>Math.abs(v-enhanced[i])>3))throw Error('Offscreen PNG snapshot mismatch: '+offscreenPixel);
+          off.destroy();holder.remove();
           headData.fill(NaN);device.queue.writeBuffer(head,0,headData);
           const bad=await createImageBitmap(input);let rejected=false;
           try{await renderer.process(bad,{tone:0,structure:0,split:0},()=>{});}catch(e){rejected=String(e).includes('non-finite');}finally{bad.close();}
           if(!rejected)throw Error('Invalid model output was not rejected');
           renderer.destroy();head.destroy();features.destroy();device.destroy();canvas.remove();
-          return {softwareAdapter:adapter.info?.description||'test adapter',input:Array.from(source),original,enhanced,completionMs:ms,
-            scope:'synthetic residual and real frame wrapper only; full neural inference and parity NOT tested'};
+          return {softwareAdapter:{vendor:adapter.info?.vendor,architecture:adapter.info?.architecture},
+            input:Array.from(source),original,enhanced,videoPixel,offscreenPixel,completionMs:ms,
+            scope:'synthetic residual and real GPU frame wrapper/PNG export only; full neural inference and parity NOT tested'};
         }""")
-        results.append('real WebGPU preprocessing/composition, alpha, padded features, VideoFrame textures and non-finite-output rejection')
+        results.append('real WebGPU features/composition, stable HTML/Offscreen PNG exports, alpha, VideoFrame textures and invalid-output rejection')
         worker_result=page.evaluate("""async () => {
           const {NeuralClient}=await import('/packages/nr/client.js');const c=new NeuralClient(),canvas=new OffscreenCanvas(64,48);
           const manifestBytes=new TextEncoder().encode('{}').buffer;
