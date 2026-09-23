@@ -2,9 +2,15 @@
 
 Local-first media enhancement for Chrome/Edge, with an optional Windows companion.
 
-**0.3.0 adds an experimental OpenDLSS-NR browser adapter and isolated Neural Lab. No trained model is approved or bundled: live neural inference is locked in the shipped build. The default Media Lab and Windows companion remain spatial enhancement.**
+**0.4.0 adds LookLock, a local creator review/composition workflow for imported neural outputs. Version 0.3.0 added an experimental OpenDLSS-NR browser adapter and isolated Neural Lab. No trained model is approved or bundled: live neural inference is locked in the shipped build. The default Media Lab and Windows companion remain spatial enhancement.**
 
 The [original research plan](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md) is preserved unchanged. [Implementation status](docs/implementation-status.md) distinguishes delivered code from proposed milestones.
+
+## LookLock — new in 0.4.0
+
+**Review a DLSS-treated frame without letting the treatment repaint your HUD, captions, or labels.** Open **LookLock** in the extension or Media Lab. Bring an original and a same-sized treated still, draw source-protected regions, inspect the pixel differences, and export a lossless protected composite, mask, review board, or hash-bound recipe.
+
+Local video frame selection helps send one exact source frame to your external renderer. Mouse, touch, and keyboard coordinate controls are supported. The built-in fictional replay example is deliberately edited, **not neural-generated**. LookLock does not invoke DLSS or authenticate imported results; built-in NR inference remains gated. Read [the workflow, scope and verification notes](docs/looklock.md).
 
 ## Neural Lab
 
@@ -47,7 +53,7 @@ The spatial lab accepts PNG/JPEG/WebP/AVIF images and browser-decodable MP4/WebM
 
 ## Install the extension
 
-Run `npm run build`. Open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, select **Load unpacked**, and choose **`dist/extension`**, not the repository root. Pin its toolbar icon to open either lab.
+Run `npm run build`. Open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, select **Load unpacked**, and choose **`dist/extension`**, not the repository root. Pin its toolbar icon to open Media Lab, Neural Lab, or LookLock.
 
 Inline enhancement is limited to readable, unprotected, top-frame HTML5 video with native controls and supported geometry. Universal YouTube/custom-player/iframe support is not claimed. Audio stays with the original player. **Restore original video** or the in-page stop control removes inline processing.
 
@@ -101,16 +107,18 @@ See [support matrix](docs/support-matrix.md), [benchmark method](docs/benchmark-
 ```text
 apps/viewer             Spatial Media Lab
 apps/nr                 Isolated approval-gated Neural Lab
+apps/looklock           Still-frame creator review and source locks
 apps/extension          MV3 permissions and session routing
 packages/contracts      Validated settings/native commands
 packages/gpu-web        Spatial rendering and bounded scheduling
 packages/nr             Model policy, worker and graph adapter
+packages/looklock       CPU still-frame composition, recipes and lossless PNG
 third_party/opendlss-nr  Pinned MIT source; no weights
 native/windows          Windows picker and D3D11 spatial preview
 models                  Metadata, approvals and source hashes only
 docs                    Preserved research, status and release gates
 ```
 
-Browser processing uses GPU textures rather than a full-frame JavaScript pixel loop. Native Messaging transports controls/status only. Temporal processing and D3D/Vulkan interop remain separate work.
+Media Lab and the neural adapter use GPU textures for their rendering paths. LookLock separately uses bounded CPU/Canvas2D processing for still-frame review; it is not a live enhancement path. Native Messaging transports controls/status only. Temporal processing and D3D/Vulkan interop remain separate work.
 
 Original application: MIT. Reference notices are preserved in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Shiny Engine is independent and not NVIDIA-affiliated or endorsed.

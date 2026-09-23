@@ -1,4 +1,4 @@
-# Implementation status — 0.3.0 experimental neural adapter
+# Implementation status — 0.4.0 LookLock creator review
 
 This status document is separate from the unchanged input research plan. It does not retroactively rewrite the plan's research date, performance claims, or proposed acceptance gates.
 
@@ -20,3 +20,9 @@ The original 0.1.0 baseline is a spatial-enhancement application, not a reproduc
 Version 0.3.0 adds pinned MIT OpenDLSS-NR browser source as a submodule; notices and loader modifications are explicit. The default build cannot activate neural inference with its empty reviewed-model register. Original media playback and model metadata inspection work independently. CI tests the GPU frame wrapper with synthetic residuals, not a trained network or vendor parity. This is a separately gated browser research path and does not complete M4. See `neural-lab.md`.
 
 Native Windows code is unchanged. No NVIDIA runtime, weights, HDR or click-through desktop overlay is included. Keep measurements, source revision, hardware and limitations together in each evidence report.
+
+## 0.4.0 — LookLock
+
+A working still-frame creator workflow for external DLSS/other processed outputs: original/video-frame selection, same-frame confirmation, pixel-exact source locks, outside feather, raw change map, alpha-aware composition, independent lossless PNG output, three-panel review board, protection mask, source-bound recipes and privacy-conscious numerical reports. The synthetic demonstration is not neural output. Browser and extension entry points are included without new permissions or dependencies.
+
+This does not complete the NR/model-rights, native, temporal, or physical-GPU milestones above. No model register is relaxed and no inference is activated. See `looklock.md` for the specific guarantees and limitations.
