@@ -53,18 +53,23 @@ int wmain(int argc,wchar_t** argv){
  SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
  int output=_dup(_fileno(stdout));_setmode(output,_O_BINARY);_setmode(_fileno(stdin),_O_BINARY);
  _dup2(_fileno(stderr),_fileno(stdout)); // Upstream printf must not corrupt protocol bytes.
- const bool serve=argc==3&&std::wstring(argv[1])==L"--serve";
+ const bool research=argc==4&&std::wstring(argv[1])==L"--serve-research";
+ const bool serve=research||(argc==3&&std::wstring(argv[1])==L"--serve");
  try{
   const auto program=executableDir();_wputenv_s(L"DLSS5VK_PTX_DIR",(program/L"ptx").c_str());
   if(argc==2&&std::wstring(argv[1])==L"--probe"){
    vk::Context context;std::string result="Native Vulkan feature/device creation passed on "+context.deviceName()+". Model approval and inference are separate and not tested by this probe.";exactWrite(output,result.data(),result.size());_close(output);return 0;
   }
   if(argc==3&&std::wstring(argv[1])==L"--inspect"){
-   auto digest=nrpolicy::fingerprint(argv[2]);std::string result="Manifest SHA-256: "+digest+"\n"+(nrpolicy::approved(digest)?"Reviewed native model identity. Stage hashes and GPU must still pass at preparation.":"MODEL_NOT_REVIEWED: no native runtime-use and correctness approval. No weights loaded and no inference run.");exactWrite(output,result.data(),result.size());_close(output);return nrpolicy::approved(digest)?0:3;
+   try { nrpolicy::ModelGuard inspected(argv[2],nrpolicy::ModelUse::Inspect);
+   std::string result="FILES_VALID sha="+inspected.digest+"\n"+std::to_string(inspected.layout.stages.size())+" stages / "+std::to_string(inspected.layout.tensors)+" tensors verified.\nNo trained inference or quality certification. Local research requires explicit consent for this model.";
+   exactWrite(output,result.data(),result.size());_close(output);return 0;
+   }catch(const std::exception& e){std::string error="MODEL_INVALID: "+std::string(e.what());exactWrite(output,error.data(),error.size());_close(output);return 3;}
   }
-  if(!serve)throw std::runtime_error("Usage: ShinyNrWorker --probe | --inspect MODEL_DIRECTORY | --serve MODEL_DIRECTORY");
-  nrpolicy::ModelGuard guard(argv[2]);
-  Runtime runtime(argv[2],program);reply(output,nrwire::Ready,"Prepared "+runtime.device()+"; independent SDR preview, no temporal history.");
+  if(!serve)throw std::runtime_error("Usage: ShinyNrWorker --probe | --inspect MODEL_DIRECTORY | --serve MODEL_DIRECTORY | --serve-research MODEL_DIRECTORY MANIFEST_SHA256");
+  std::wstring consent=research?argv[3]:L"";
+  nrpolicy::ModelGuard guard(argv[2],research?nrpolicy::ModelUse::LocalResearch:nrpolicy::ModelUse::Reviewed,std::string(consent.begin(),consent.end()));
+  Runtime runtime(argv[2],program);reply(output,nrwire::Ready,std::string(research?"LOCAL RESEARCH / UNVERIFIED. ":"Reviewed model. ")+"Prepared "+runtime.device()+"; independent SDR preview, no temporal history.");
   uint32_t lastSequence=0;
   for(;;){nrwire::Header h;exactRead(&h,sizeof h);nrwire::validate(h);if(h.command==nrwire::Stop)break;
    if(!h.sequence||h.sequence<=lastSequence)throw std::runtime_error("Stale or duplicate frame request.");lastSequence=h.sequence;

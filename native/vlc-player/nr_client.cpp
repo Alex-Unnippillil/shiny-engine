@@ -48,8 +48,10 @@ std::string NrProcess::readText(std::stop_token stop,unsigned timeout){std::stri
 }
 bool NrProcess::succeeded()const{DWORD code=1;return GetExitCodeProcess(process,&code)&&code==0;}
 void NrSession::status(std::string text,bool ready){std::lock_guard lock(mutex);statusText=std::move(text);isReady=ready;}
-NrSession::NrSession(const std::filesystem::path& model){thread=std::jthread([this,model](std::stop_token stop){try{
- auto child=std::make_shared<NrProcess>(L"--serve "+quote(model.wstring()));{std::lock_guard lock(mutex);process=child;}if(stop.stop_requested()){child->cancel();return;}
+NrSession::NrSession(const std::filesystem::path& model,const std::string& researchDigest){thread=std::jthread([this,model,researchDigest](std::stop_token stop){try{
+ if(!researchDigest.empty()&&(researchDigest.size()!=64||researchDigest.find_first_not_of("0123456789abcdef")!=std::string::npos))throw std::runtime_error("Invalid local research identity.");
+ auto args=researchDigest.empty()?L"--serve "+quote(model.wstring()):L"--serve-research "+quote(model.wstring())+L" "+wide(researchDigest);
+ auto child=std::make_shared<NrProcess>(args);{std::lock_guard lock(mutex);process=child;}if(stop.stop_requested()){child->cancel();return;}
  nrwire::Header greeting;child->receive(&greeting,sizeof greeting,stop,120000);nrwire::validateReply(greeting);std::string text(greeting.bytes,'\0');child->receive(text.data(),text.size(),stop);
  if(greeting.command!=nrwire::Ready)throw std::runtime_error(text);status(text,true);
  while(!stop.stop_requested()){std::optional<NrImage> frame;{std::unique_lock lock(mutex);changed.wait(lock,stop,[&]{return pending.has_value();});if(stop.stop_requested())break;frame=std::move(pending);pending.reset();}

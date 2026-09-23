@@ -1,52 +1,40 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 #include "approvals.hpp"
+#include "manifest.hpp"
 #include <windows.h>
 #include <filesystem>
 #include <fstream>
-#include <vector>
-#include <set>
-#include <cctype>
 #include "sha256.h"
-#include "json.h"
 namespace shiny::nrpolicy {
-inline std::string lowerHash(std::string s){for(auto& c:s)c=static_cast<char>(std::tolower(static_cast<unsigned char>(c)));return s;}
-inline std::string fingerprint(const std::filesystem::path& root){
- auto p=root/L"manifest.json";auto n=std::filesystem::file_size(p);
- if(!n||n>2*1024*1024)throw std::runtime_error("Model manifest must be between 1 byte and 2 MiB.");
- std::ifstream in(p,std::ios::binary);std::vector<uint8_t> bytes(static_cast<size_t>(n));
- if(!in.read(reinterpret_cast<char*>(bytes.data()),bytes.size()))throw std::runtime_error("Model manifest cannot be read.");
- return lowerHash(sha256Hex(bytes.data(),bytes.size()));
+inline std::vector<uint8_t> readBounded(const std::filesystem::path& path,uint64_t maximum){
+ auto n=std::filesystem::file_size(path);if(!n||n>maximum)throw std::runtime_error("Model file is empty or exceeds its byte limit.");
+ std::ifstream in(path,std::ios::binary);std::vector<uint8_t> bytes(static_cast<size_t>(n));
+ if(!in.read(reinterpret_cast<char*>(bytes.data()),static_cast<std::streamsize>(n)))throw std::runtime_error("Cannot read model file.");return bytes;
 }
+inline std::string fingerprint(const std::filesystem::path& root){auto b=readBounded(root/L"manifest.json",2*1024*1024);return lowerHash(sha256Hex(b.data(),b.size()));}
+enum class ModelUse { Inspect, Reviewed, LocalResearch };
 class ModelGuard {
- std::vector<HANDLE> locks;
- std::filesystem::path root;
- void lock(const std::filesystem::path& path){
-  // Hold read-only sharing until model destruction; disallow nested reparse links.
-  auto rel=path.lexically_relative(root);auto part=root;
-  for(const auto& segment:rel){part/=segment;DWORD a=GetFileAttributesW(part.c_str());if(a==INVALID_FILE_ATTRIBUTES||(a&FILE_ATTRIBUTE_REPARSE_POINT))throw std::runtime_error("Model files must not be reparse links.");}
-  HANDLE h=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
-  if(h==INVALID_HANDLE_VALUE)throw std::runtime_error("Cannot acquire read-only model lock.");locks.push_back(h);
+ std::vector<HANDLE> locks;std::set<std::filesystem::path> locked;std::filesystem::path root;
+ void hold(const std::filesystem::path& path,bool directory){
+  if(locked.count(path))return;
+  HANDLE h=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_FLAG_OPEN_REPARSE_POINT|(directory?FILE_FLAG_BACKUP_SEMANTICS:0),nullptr);
+  if(h==INVALID_HANDLE_VALUE)throw std::runtime_error("Cannot lock local model files for reading.");
+  BY_HANDLE_FILE_INFORMATION info{};if(!GetFileInformationByHandle(h,&info)||(info.dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT)||static_cast<bool>(info.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY)!=directory){CloseHandle(h);throw std::runtime_error("Model paths must be ordinary files/directories, not links.");}
+  locks.push_back(h);locked.insert(path);
  }
+ void holdStage(const std::filesystem::path& relative){auto part=root/L"model";hold(part,true);auto parent=relative.parent_path();for(const auto& s:parent){part/=s;hold(part,true);}hold(root/L"model"/relative,false);}
  public:
- std::string digest;
- explicit ModelGuard(const std::filesystem::path& directory):root(std::filesystem::canonical(directory)){
+ std::string digest;Layout layout;bool reviewed=false;
+ explicit ModelGuard(const std::filesystem::path& directory,ModelUse use=ModelUse::Reviewed,const std::string& consentDigest={}):root(std::filesystem::canonical(directory)){
   try{
-   lock(root/L"manifest.json");digest=fingerprint(root);
-   if(!approved(digest))throw std::runtime_error("MODEL_NOT_REVIEWED: no native runtime-use and correctness approval for SHA-256 "+digest);
-   std::ifstream in(root/L"manifest.json",std::ios::binary);std::string text((std::istreambuf_iterator<char>(in)),{});
-   auto manifest=json::parse(text); // Only exact reviewed bytes reach the upstream parser.
-   if(manifest["totals"]["blockCount"].integer()!=71 || manifest["stages"].size()>256)throw std::runtime_error("Unsupported native graph layout.");
-   size_t total=0;std::set<std::string> seen;
-   for(const auto& s:manifest["stages"].array){
-    const auto name=s["file"].str();std::filesystem::path relative(name);
-    if(name.empty()||name.size()>240||relative.is_absolute()||name.find(':')!=std::string::npos||name.find('\\')!=std::string::npos||relative.extension()!=L".bin")throw std::runtime_error("Unsafe model stage path.");
-    for(const auto& part:relative)if(part==L".."||part==L"."||part.empty())throw std::runtime_error("Unsafe model stage path.");
-    if(!seen.insert(lowerHash(name)).second)throw std::runtime_error("Duplicate model path.");
-    auto file=root/L"model"/relative;lock(file);auto n=std::filesystem::file_size(file);total+=static_cast<size_t>(n);
-    if(!n||n>256*1024*1024||total>256*1024*1024||n!=static_cast<uint64_t>(s["packedByteLength"].integer()))throw std::runtime_error("Model size mismatch.");
-    std::ifstream f(file,std::ios::binary);std::vector<uint8_t> bytes(static_cast<size_t>(n));if(!f.read(reinterpret_cast<char*>(bytes.data()),bytes.size()))throw std::runtime_error("Cannot read locked stage.");
-    if(lowerHash(sha256Hex(bytes.data(),bytes.size()))!=lowerHash(s["sha256"].str()))throw std::runtime_error("Model stage hash mismatch.");
+   hold(root,true);hold(root/L"manifest.json",false);auto bytes=readBounded(root/L"manifest.json",2*1024*1024);digest=lowerHash(sha256Hex(bytes.data(),bytes.size()));reviewed=approved(digest);
+   if(use==ModelUse::Reviewed&&!reviewed)throw std::runtime_error("MODEL_NOT_REVIEWED: use explicit local research consent for an unreviewed model.");
+   if(use==ModelUse::LocalResearch&&(!hashString(consentDigest)||lowerHash(consentDigest)!=digest))throw std::runtime_error("RESEARCH_IDENTITY_CHANGED: reselect the model and confirm this exact fingerprint.");
+   layout=validateLayout(std::string(bytes.begin(),bytes.end()));
+   for(const auto& s:layout.stages){auto relative=std::filesystem::path(s.file);holdStage(relative);auto path=root/L"model"/relative;
+    if(std::filesystem::file_size(path)!=s.bytes)throw std::runtime_error("Stage size differs from manifest.");auto data=readBounded(path,256ull*1024*1024);
+    if(lowerHash(sha256Hex(data.data(),data.size()))!=lowerHash(s.hash))throw std::runtime_error("Model stage SHA-256 mismatch.");
    }
   }catch(...){for(auto h:locks)CloseHandle(h);locks.clear();throw;}
  }

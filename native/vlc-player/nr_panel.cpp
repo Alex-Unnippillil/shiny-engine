@@ -1,71 +1,80 @@
 // SPDX-License-Identifier: MIT
 #include "ui.hpp"
-#include "nr_client.hpp"
+#include <uxtheme.h>
+#include <iomanip>
 namespace shiny::player {
 struct NeuralPanel::Impl {
  HWND hwnd=nullptr,info=nullptr;std::shared_ptr<VlcApi> api;std::unique_ptr<NrSource> source;std::unique_ptr<NrSession> session;
- std::filesystem::path model;std::optional<NrImage> latest;std::jthread check;
- std::mutex mutex;std::shared_ptr<NrProcess> probe;std::string checkText;bool checked=false,busy=false,approved=false;
- int64_t initial=0;bool initialSeek=false;HFONT font=nullptr;std::string previousStatus;
- enum{Probe=101,Model=102,Start=103,Stop=104,Pause=105,Tone=106,Structure=107,Blend=108};
- HWND make(const wchar_t* cls,const wchar_t* label,int id,DWORD styles=0){auto h=CreateWindowW(cls,label,WS_CHILD|WS_VISIBLE|WS_TABSTOP|styles,0,0,20,20,hwnd,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),nullptr,nullptr);SendMessageW(h,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);return h;}
+ std::filesystem::path model;std::optional<NrImage> latest,inputFrame;std::jthread check;std::mutex mutex;std::shared_ptr<NrProcess> probe;
+ std::string checkText,modelDigest,previousStatus;bool checked=false,busy=false,inspectResult=false,inspectPending=false;
+ int64_t initial=0;bool initialSeek=false,forceProcess=false;HFONT font=nullptr,titleFont=nullptr;std::vector<double> timings;uint64_t completed=0;
+ enum{Probe=101,Model=102,Start=103,Stop=104,Pause=105,Tone=106,Structure=107,Blend=108,Consent=110,View=111,Divider=112,Export=113,Report=114};
+ int dpi()const{return hwnd?std::max(96,static_cast<int>(GetDpiForWindow(hwnd))):96;}
+ int px(int n)const{return MulDiv(n,dpi(),96);}
+ HWND make(const wchar_t* cls,const wchar_t* label,int id,DWORD styles=0){auto h=CreateWindowW(cls,label,WS_CHILD|WS_VISIBLE|WS_TABSTOP|styles,0,0,20,20,hwnd,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),nullptr,nullptr);SendMessageW(h,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);if(std::wstring(cls)==L"STATIC")SetWindowLongPtrW(h,GWL_STYLE,GetWindowLongPtrW(h,GWL_STYLE)&~WS_TABSTOP);return h;}
+ void fonts(){auto old=font,oldTitle=titleFont;font=CreateFontW(-px(15),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");titleFont=CreateFontW(-px(25),0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");for(auto h=GetWindow(hwnd,GW_CHILD);h;h=GetWindow(h,GW_HWNDNEXT))SendMessageW(h,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);if(old)DeleteObject(old);if(oldTitle)DeleteObject(oldTitle);}
  Impl(HWND owner,std::shared_ptr<VlcApi> runtime,const Item& item,uint32_t w,uint32_t h,int64_t at):api(std::move(runtime)),initial(at){
-  source=std::make_unique<NrSource>(api,item,w,h,at);
-  WNDCLASSW wc{};wc.hInstance=GetModuleHandleW(nullptr);wc.lpfnWndProc=proc;wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);wc.hbrBackground=shiny::ui::backgroundBrush;wc.lpszClassName=L"ShinyNativeNeural";RegisterClassW(&wc);
-  font=CreateFontW(-16,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
-  hwnd=CreateWindowExW(0,wc.lpszClassName,L"Native Neural Workbench · OpenDLSS-NR",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,1100,740,owner,nullptr,wc.hInstance,this);
-  if(!hwnd)throw std::runtime_error("Cannot create Neural Workbench.");ShowWindow(hwnd,SW_SHOW);SetTimer(hwnd,1,100,nullptr);
+  source=std::make_unique<NrSource>(api,item,w,h,at);WNDCLASSW wc{};wc.hInstance=GetModuleHandleW(nullptr);wc.lpfnWndProc=proc;wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);wc.hbrBackground=shiny::ui::backgroundBrush;wc.lpszClassName=L"ShinyNativeNeural";RegisterClassW(&wc);
+  hwnd=CreateWindowExW(0,wc.lpszClassName,L"Neural Studio · Local OpenDLSS-NR research",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,1160,840,owner,nullptr,wc.hInstance,this);
+  if(!hwnd)throw std::runtime_error("Cannot create Neural Studio.");ShowWindow(hwnd,SW_SHOW);SetTimer(hwnd,1,100,nullptr);
  }
- ~Impl(){stop();if(IsWindow(hwnd))DestroyWindow(hwnd);if(font)DeleteObject(font);}
- void stop(){session.reset();if(check.joinable()){check.request_stop();{std::lock_guard lock(mutex);if(probe)probe->cancel();}check.join();}source.reset();}
- void cancelCheck(){if(check.joinable()){check.request_stop();{std::lock_guard lock(mutex);if(probe)probe->cancel();}check.join();}busy=false;}
- void runCheck(bool inspect){cancelCheck();checked=false;busy=true;if(inspect)approved=false;auto directory=model;
-  SetWindowTextW(info,inspect?L"Inspecting local manifest identity. No weights loaded yet…":L"Checking native Vulkan device/features. This is not an inference benchmark…");
-  check=std::jthread([this,inspect,directory](std::stop_token stop){std::string result;bool success=false;try{auto child=std::make_shared<NrProcess>(inspect?L"--inspect "+quote(directory.wstring()):L"--probe");{std::lock_guard lock(mutex);probe=child;}if(stop.stop_requested())child->cancel();result=child->readText(stop);success=child->succeeded();}catch(const std::exception& e){result=e.what();}
-   std::lock_guard lock(mutex);probe.reset();checkText=std::move(result);if(inspect)approved=success;checked=true;busy=false;});
+ ~Impl(){stop();if(IsWindow(hwnd))DestroyWindow(hwnd);if(font)DeleteObject(font);if(titleFont)DeleteObject(titleFont);}
+ void cancelCheck(){if(check.joinable()){check.request_stop();{std::lock_guard lock(mutex);if(probe)probe->cancel();}check.join();}busy=false;checked=false;}
+ void stop(){session.reset();cancelCheck();source.reset();}
+ bool consent()const{return SendMessageW(GetDlgItem(hwnd,Consent),BM_GETCHECK,0,0)==BST_CHECKED;}
+ void runCheck(bool inspect){cancelCheck();busy=true;inspectPending=inspect;if(inspect){modelDigest.clear();SendMessageW(GetDlgItem(hwnd,Consent),BM_SETCHECK,BST_UNCHECKED,0);if(latest)latest->enhanced.clear();}auto directory=model;
+  SetWindowTextW(info,inspect?L"Validating local model schema, every tensor range and all stage hashes. No GPU inference…":L"Checking native Vulkan device/features. This is not a performance test…");
+  check=std::jthread([this,inspect,directory](std::stop_token token){std::string result;bool ok=false;try{auto child=std::make_shared<NrProcess>(inspect?L"--inspect "+quote(directory.wstring()):L"--probe");{std::lock_guard lock(mutex);probe=child;}if(token.stop_requested())child->cancel();result=child->readText(token,120000);ok=child->succeeded();}catch(const std::exception& e){result=e.what();}
+   std::lock_guard lock(mutex);probe.reset();checkText=std::move(result);inspectResult=inspect&&ok;checked=true;});
  }
- void layout(){RECT r{};GetClientRect(hwnd,&r);auto pos=[&](int id,int x,int y,int w,int h){MoveWindow(GetDlgItem(hwnd,id),x,y,w,h,TRUE);};
-  pos(Probe,20,66,150,34);pos(Model,182,66,170,34);pos(Start,364,66,160,34);pos(Stop,536,66,140,34);pos(Pause,688,66,150,34);
-  for(int i=0;i<3;++i){pos(200+i,20+i*280,r.bottom-172,220,22);pos(Tone+i,20+i*280,r.bottom-144,250,28);}pos(209,20,r.bottom-106,r.right-40,90);InvalidateRect(hwnd,nullptr,TRUE);
+ void labels(){const wchar_t* names[]={L"Tone",L"Structure",L"Neural blend"};for(int i=0;i<3;++i){auto n=SendMessageW(GetDlgItem(hwnd,Tone+i),TBM_GETPOS,0,0);SetWindowTextW(GetDlgItem(hwnd,200+i),(std::wstring(names[i])+L"  /  "+std::to_wstring(n)+L"%").c_str());}}
+ void layout(){RECT r{};GetClientRect(hwnd,&r);int w=MulDiv(r.right,96,dpi()),h=MulDiv(r.bottom,96,dpi());auto pos=[&](int id,int x,int y,int cw,int ch){MoveWindow(GetDlgItem(hwnd,id),px(x),px(y),px(cw),px(ch),TRUE);};
+  pos(Probe,24,82,120,36);pos(Model,154,82,182,36);pos(Start,346,82,184,36);pos(Stop,540,82,115,36);pos(Pause,665,82,140,36);
+  pos(Consent,24,130,w-48,25);pos(View,24,174,204,160);pos(Export,w-278,174,120,32);pos(Report,w-148,174,124,32);
+  for(int i=0;i<3;++i){int x=24+i*(w-48)/3;pos(200+i,x,h-212,230,22);pos(Tone+i,x,h-182,(w-72)/3,30);}pos(Divider,240,177,std::max(100,w-550),25);pos(209,24,h-132,w-48,114);InvalidateRect(hwnd,nullptr,TRUE);
  }
- void drawImage(HDC dc,const NrImage& frame,bool output,RECT area){auto& data=output?frame.enhanced:frame.original;if(data.empty())return;
-  const auto w=frame.header.width,h=frame.header.height;std::vector<uint8_t> bgra(data.size());for(size_t i=0;i<data.size();i+=4){bgra[i]=data[i+2];bgra[i+1]=data[i+1];bgra[i+2]=data[i];bgra[i+3]=255;}
-  double scale=std::min(double(area.right-area.left)/w,double(area.bottom-area.top)/h);int dw=static_cast<int>(w*scale),dh=static_cast<int>(h*scale);int x=area.left+(area.right-area.left-dw)/2,y=area.top+(area.bottom-area.top-dh)/2;
-  BITMAPINFO bitmap{};bitmap.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);bitmap.bmiHeader.biWidth=w;bitmap.bmiHeader.biHeight=-static_cast<int>(h);bitmap.bmiHeader.biPlanes=1;bitmap.bmiHeader.biBitCount=32;bitmap.bmiHeader.biCompression=BI_RGB;
-  SetStretchBltMode(dc,HALFTONE);StretchDIBits(dc,x,y,dw,dh,0,0,w,h,bgra.data(),&bitmap,DIB_RGB_COLORS,SRCCOPY);
+ void drawImage(HDC dc,const NrImage& frame,bool output,RECT area){const auto& data=output?frame.enhanced:frame.original;if(data.empty())return;auto w=frame.header.width,h=frame.header.height;std::vector<uint8_t> bgra(data.size());for(size_t i=0;i<data.size();i+=4){bgra[i]=data[i+2];bgra[i+1]=data[i+1];bgra[i+2]=data[i];bgra[i+3]=255;}
+  double scale=std::min(double(area.right-area.left)/w,double(area.bottom-area.top)/h);int dw=static_cast<int>(w*scale),dh=static_cast<int>(h*scale);BITMAPINFO b{};b.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);b.bmiHeader.biWidth=w;b.bmiHeader.biHeight=-static_cast<int>(h);b.bmiHeader.biPlanes=1;b.bmiHeader.biBitCount=32;b.bmiHeader.biCompression=BI_RGB;
+  SetStretchBltMode(dc,HALFTONE);StretchDIBits(dc,area.left+(area.right-area.left-dw)/2,area.top+(area.bottom-area.top-dh)/2,dw,dh,0,0,w,h,bgra.data(),&b,DIB_RGB_COLORS,SRCCOPY);
  }
- void paint(){PAINTSTRUCT ps;HDC dc=BeginPaint(hwnd,&ps);RECT r{};GetClientRect(hwnd,&r);FillRect(dc,&r,shiny::ui::backgroundBrush);SelectObject(dc,font);SetBkMode(dc,TRANSPARENT);SetTextColor(dc,shiny::ui::text);
-  RECT title{20,20,r.right-20,54};DrawTextW(dc,L"NATIVE NEURAL WORKBENCH  /  independent SDR preview",-1,&title,DT_SINGLELINE);
-  RECT left{20,150,r.right/2-10,r.bottom-196},right{r.right/2+10,150,r.right-20,r.bottom-196};FillRect(dc,&left,shiny::ui::panelBrush);FillRect(dc,&right,shiny::ui::panelBrush);
-  RECT a{20,116,r.right/2,145},b{r.right/2+10,116,r.right-20,145};DrawTextW(dc,L"MATCHED ORIGINAL INPUT",-1,&a,DT_SINGLELINE);DrawTextW(dc,L"OPENDLSS-NR OUTPUT · ONLY AFTER PREPARATION",-1,&b,DT_SINGLELINE);
-  if(latest){drawImage(dc,*latest,false,left);drawImage(dc,*latest,true,right);}
-  if(!latest||latest->enhanced.empty()){SetTextColor(dc,shiny::ui::muted);DrawTextW(dc,L"No neural output\n\nSelect a reviewed model package and prepare it.\nNo model weights are bundled.\n\nThis panel never substitutes a spatial filter.",-1,&right,DT_CENTER|DT_WORDBREAK);}
-  EndPaint(hwnd,&ps);
+ void paint(){PAINTSTRUCT ps;HDC dc=BeginPaint(hwnd,&ps);RECT r{};GetClientRect(hwnd,&r);FillRect(dc,&r,shiny::ui::backgroundBrush);SetBkMode(dc,TRANSPARENT);SetTextColor(dc,shiny::ui::text);SelectObject(dc,titleFont);RECT title{px(24),px(16),r.right-px(24),px(50)};DrawTextW(dc,L"Neural Studio",-1,&title,DT_SINGLELINE);SelectObject(dc,font);SetTextColor(dc,shiny::ui::accent);RECT sub{px(24),px(50),r.right-px(24),px(74)};DrawTextW(dc,L"OPENDLSS-NR  /  LOCAL RESEARCH  /  NOT NVIDIA-CERTIFIED",-1,&sub,DT_SINGLELINE);
+  RECT area{px(24),px(240),r.right-px(24),r.bottom-px(230)};FillRect(dc,&area,shiny::ui::panelBrush);SetTextColor(dc,shiny::ui::muted);int mode=static_cast<int>(SendMessageW(GetDlgItem(hwnd,View),CB_GETCURSEL,0,0));
+  RECT a{area.left,px(214),area.right,px(236)};DrawTextW(dc,mode==0?L"ORIGINAL INPUT                                               LOCAL MODEL OUTPUT · UNVERIFIED":mode==1?L"MATCHED-FRAME WIPE · ORIGINAL LEFT / MODEL OUTPUT RIGHT":mode==2?L"LOCAL MODEL OUTPUT · UNVERIFIED":L"ORIGINAL INPUT · MUTED INDEPENDENT PREVIEW",-1,&a,DT_SINGLELINE);
+  if(latest){if(mode==0){RECT left=area,right=area;left.right=r.right/2-px(5);right.left=r.right/2+px(5);drawImage(dc,*latest,false,left);if(!latest->enhanced.empty())drawImage(dc,*latest,true,right);else{right.left+=px(20);right.right-=px(20);right.top+=px(48);DrawTextW(dc,L"Your model. Your experiment.\n\n1  Select a compatible local model folder\n2  Confirm permission and research use\n3  Prepare the native worker\n\nNo model download or simulated AI effect.",-1,&right,DT_CENTER|DT_WORDBREAK);}}
+   else if(mode==1&&!latest->enhanced.empty()){drawImage(dc,*latest,false,area);int at=area.left+(area.right-area.left)*static_cast<int>(SendMessageW(GetDlgItem(hwnd,Divider),TBM_GETPOS,0,0))/100;int saved=SaveDC(dc);IntersectClipRect(dc,at,area.top,area.right,area.bottom);drawImage(dc,*latest,true,area);RestoreDC(dc,saved);auto pen=CreatePen(PS_SOLID,px(2),shiny::ui::accent);auto old=SelectObject(dc,pen);MoveToEx(dc,at,area.top,nullptr);LineTo(dc,at,area.bottom);SelectObject(dc,old);DeleteObject(pen);}
+   else if(mode==3)drawImage(dc,*latest,false,area);else if(!latest->enhanced.empty())drawImage(dc,*latest,true,area);else DrawTextW(dc,L"No computed output yet. The model has not processed this frame.",-1,&area,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
+  }else DrawTextW(dc,L"Waiting for a decoded original frame…",-1,&area,DT_CENTER|DT_VCENTER|DT_SINGLELINE);EndPaint(hwnd,&ps);
  }
+ void submit(){if(!session||!session->ready()||(!inputFrame&&!latest))return;auto image=inputFrame?*inputFrame:*latest;image.enhanced.clear();image.header.tone=static_cast<float>(SendMessageW(GetDlgItem(hwnd,Tone),TBM_GETPOS,0,0))/100;image.header.structure=static_cast<float>(SendMessageW(GetDlgItem(hwnd,Structure),TBM_GETPOS,0,0))/100;image.header.blend=static_cast<float>(SendMessageW(GetDlgItem(hwnd,Blend),TBM_GETPOS,0,0))/100;session->submit(std::move(image));forceProcess=false;}
  void tick(){
-  {std::lock_guard lock(mutex);if(checked){SetWindowTextW(info,wide(checkText).c_str());checked=false;}EnableWindow(GetDlgItem(hwnd,Start),approved&&!busy&&!session);EnableWindow(GetDlgItem(hwnd,Probe),!busy&&!session);EnableWindow(GetDlgItem(hwnd,Model),!busy&&!session);}
-  if(!source)return;if(!initialSeek&&source->seekable()){source->seek(initial);initialSeek=true;}
-  if(session){auto text=session->status();if(text!=previousStatus){previousStatus=text;SetWindowTextW(info,wide(text).c_str());}if(auto ready=session->take()){latest=std::move(ready);auto dims=std::to_wstring(latest->header.width)+L"×"+std::to_wstring(latest->header.height);SetWindowTextW(info,(L"OpenDLSS-NR independent frame · "+dims+L" · "+std::to_wstring(static_cast<int>(latest->milliseconds))+L" ms complete worker round-trip. CPU transfers included. No temporal or audio-sync claim.").c_str());InvalidateRect(hwnd,nullptr,FALSE);}}
-  if(auto image=source->sample()){if(session&&session->ready()){image->header.tone=static_cast<float>(SendMessageW(GetDlgItem(hwnd,Tone),TBM_GETPOS,0,0))/100;image->header.structure=static_cast<float>(SendMessageW(GetDlgItem(hwnd,Structure),TBM_GETPOS,0,0))/100;image->header.blend=static_cast<float>(SendMessageW(GetDlgItem(hwnd,Blend),TBM_GETPOS,0,0))/100;session->submit(std::move(*image));}else if(!session){latest=std::move(image);InvalidateRect(hwnd,nullptr,FALSE);}}
+  {std::lock_guard lock(mutex);if(checked){busy=false;checked=false;SetWindowTextW(info,wide(checkText).c_str());if(inspectPending&&inspectResult&&checkText.starts_with("FILES_VALID sha=")&&checkText.size()>=80){auto digest=checkText.substr(16,64);if(digest.find_first_not_of("0123456789abcdef")==std::string::npos)modelDigest=digest;}}}
+  EnableWindow(GetDlgItem(hwnd,Start),!modelDigest.empty()&&consent()&&!busy&&!session);EnableWindow(GetDlgItem(hwnd,Probe),!busy&&!session);EnableWindow(GetDlgItem(hwnd,Model),!busy&&!session);EnableWindow(GetDlgItem(hwnd,Consent),!busy&&!session);EnableWindow(GetDlgItem(hwnd,Export),latest&&!latest->enhanced.empty());
+  if(!source)return;if(!initialSeek&&source->seekable()){source->seek(initial);source->pause(true);initialSeek=true;}
+  if(session){auto text=session->status();if(text!=previousStatus){previousStatus=text;SetWindowTextW(info,wide(text).c_str());}if(auto ready=session->take()){latest=std::move(ready);++completed;timings.push_back(latest->milliseconds);if(timings.size()>300)timings.erase(timings.begin());auto sorted=timings;std::sort(sorted.begin(),sorted.end());auto p95=sorted[static_cast<size_t>(std::ceil(sorted.size()*.95))-1];SetWindowTextW(info,(L"LOCAL RESEARCH · "+std::to_wstring(latest->header.width)+L" × "+std::to_wstring(latest->header.height)+L" · p95 "+std::to_wstring(static_cast<int>(p95))+L" ms worker round-trip, CPU transfers included.\nModel identity: "+wide(modelDigest.substr(0,16))+L"… · Output is unverified and may alter appearance.\nIndependent muted frames; not audio-synchronized or temporally reconstructed.").c_str());InvalidateRect(hwnd,nullptr,FALSE);}}
+  if(auto image=source->sample()){inputFrame=*image;if(session&&session->ready())submit();else if(!session){latest=std::move(image);InvalidateRect(hwnd,nullptr,FALSE);}}
+  if(forceProcess&&session&&session->ready())submit();
  }
+ void exportPng(){if(!latest||latest->enhanced.empty())throw std::runtime_error("No computed output to export.");auto paths=shiny::ui::pick(hwnd,false,false,true);if(paths.empty())return;auto& f=*latest;std::vector<uint8_t> bgra(f.enhanced.size());for(size_t i=0;i<bgra.size();i+=4){bgra[i]=f.enhanced[i+2];bgra[i+1]=f.enhanced[i+1];bgra[i+2]=f.enhanced[i];bgra[i+3]=255;}
+  Gdiplus::Bitmap image(f.header.width,f.header.height,static_cast<INT>(f.header.width*4),PixelFormat32bppARGB,bgra.data());UINT count=0,size=0;Gdiplus::GetImageEncodersSize(&count,&size);std::vector<uint8_t> bytes(size);auto codecs=reinterpret_cast<Gdiplus::ImageCodecInfo*>(bytes.data());Gdiplus::GetImageEncoders(count,size,codecs);for(UINT i=0;i<count;++i)if(std::wstring(codecs[i].MimeType)==L"image/png"){if(image.Save(paths[0].c_str(),&codecs[i].Clsid,nullptr)!=Gdiplus::Ok)throw std::runtime_error("Could not export PNG.");SetWindowTextW(info,L"Computed research frame exported. Keep the original; this output is not an authenticity or fidelity guarantee.");return;}throw std::runtime_error("PNG encoder unavailable.");
+ }
+ void report(){auto paths=shiny::ui::pick(hwnd,false,false,true,L"json");if(paths.empty())return;std::ofstream out(paths[0]);out<<"{\n  \"schema\": 1,\n  \"application\": \"Shiny Player 0.7.0\",\n  \"mode\": \"local-research-unverified\",\n  \"manifestSha256\": \""<<modelDigest<<"\",\n  \"userResearchConsent\": "<<(consent()?"true":"false")<<",\n  \"completedFrames\": "<<completed<<",\n  \"independentParityVerified\": false,\n  \"milliseconds\": [";for(size_t i=0;i<timings.size();++i)out<<(i?",":"")<<timings[i];out<<"],\n  \"scope\": \"Independent SDR frames, <=512 longest edge. CPU transfers included. No temporal reconstruction or main-audio sync. No media paths.\"\n}\n";if(!out)throw std::runtime_error("Cannot save report.");SetWindowTextW(info,L"Research report saved with model identity and measured round-trip samples. No media paths or frame content included.");}
  void action(int id){
-  if(id==Probe)runCheck(false);
-  if(id==Model){auto paths=shiny::ui::pick(hwnd,false,true);if(!paths.empty()){model=paths[0];runCheck(true);}}
-  if(id==Start){bool permitted=false;{std::lock_guard lock(mutex);permitted=approved&&!busy;}if(!permitted)throw std::runtime_error("No reviewed model identity. See native NR approval documentation.");session=std::make_unique<NrSession>(model);previousStatus.clear();}
-  if(id==Stop){session.reset();cancelCheck();latest.reset();SetWindowTextW(info,L"Native checks/inference stopped. Original muted preview and main playback remain available.");}
-  if(id==Pause&&source){const bool pause=source->playing();source->pause(pause);SetWindowTextW(GetDlgItem(hwnd,Pause),pause?L"Resume preview":L"Pause preview");}
+  if(id==Probe)runCheck(false);if(id==Model){auto paths=shiny::ui::pick(hwnd,false,true);if(!paths.empty()){model=paths[0];runCheck(true);}}
+  if(id==Consent){forceProcess=false;tick();}if(id==Start){if(modelDigest.empty()||!consent()||busy)throw std::runtime_error("Select valid local model files and confirm research permission first.");session=std::make_unique<NrSession>(model,modelDigest);previousStatus.clear();forceProcess=true;timings.clear();completed=0;}
+  if(id==Stop){session.reset();cancelCheck();if(latest)latest->enhanced.clear();SetWindowTextW(info,L"Worker stopped. Model files unlocked; source preview remains available. Close this window to release its decoder.");InvalidateRect(hwnd,nullptr,FALSE);}
+  if(id==Pause&&source){bool pause=source->playing();source->pause(pause);SetWindowTextW(GetDlgItem(hwnd,Pause),pause?L"Play preview":L"Freeze frame");}if(id==View)InvalidateRect(hwnd,nullptr,FALSE);if(id==Export)exportPng();if(id==Report)report();
  }
  static LRESULT CALLBACK proc(HWND h,UINT m,WPARAM w,LPARAM l){auto* p=reinterpret_cast<Impl*>(GetWindowLongPtrW(h,GWLP_USERDATA));if(m==WM_NCCREATE){p=static_cast<Impl*>(reinterpret_cast<CREATESTRUCTW*>(l)->lpCreateParams);p->hwnd=h;SetWindowLongPtrW(h,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(p));}if(!p)return DefWindowProcW(h,m,w,l);
-  try{switch(m){case WM_CREATE:
-   p->make(L"BUTTON",L"Check GPU",Probe);p->make(L"BUTTON",L"Choose model folder",Model);p->make(L"BUTTON",L"Prepare neural preview",Start);p->make(L"BUTTON",L"Stop worker / check",Stop);p->make(L"BUTTON",L"Pause preview",Pause);
-   for(int i=0;i<3;++i){const wchar_t* labels[]={L"Local tone",L"Local structure",L"Neural blend"};p->make(L"STATIC",labels[i],200+i);auto slider=p->make(TRACKBAR_CLASSW,labels[i],Tone+i,TBS_HORZ|TBS_NOTICKS);SendMessageW(slider,TBM_SETRANGE,TRUE,MAKELPARAM(0,100));SendMessageW(slider,TBM_SETPOS,TRUE,i==2?100:50);}
-   p->info=p->make(L"STATIC",L"No trained model is approved or bundled in this release. GPU checking and local manifest inspection work now. This independent muted decoder does not replace main playback. Preview: at most 512 pixels; no temporal history.",209);EnableWindow(GetDlgItem(h,Start),FALSE);return 0;
-   case WM_SIZE:p->layout();return 0;case WM_PAINT:p->paint();return 0;case WM_TIMER:p->tick();return 0;
-   case WM_CTLCOLORSTATIC:SetTextColor(reinterpret_cast<HDC>(w),shiny::ui::text);SetBkColor(reinterpret_cast<HDC>(w),shiny::ui::bg);return reinterpret_cast<LRESULT>(shiny::ui::backgroundBrush);
-   case WM_HSCROLL:if(p->session&&p->session->ready()&&p->latest){auto image=*p->latest;image.enhanced.clear();image.header.tone=static_cast<float>(SendMessageW(GetDlgItem(h,Tone),TBM_GETPOS,0,0))/100;image.header.structure=static_cast<float>(SendMessageW(GetDlgItem(h,Structure),TBM_GETPOS,0,0))/100;image.header.blend=static_cast<float>(SendMessageW(GetDlgItem(h,Blend),TBM_GETPOS,0,0))/100;p->session->submit(std::move(image));}return 0;
+  try{switch(m){case WM_CREATE:{p->fonts();BOOL dark=TRUE;DwmSetWindowAttribute(h,20,&dark,sizeof dark);p->make(L"BUTTON",L"Check GPU",Probe);p->make(L"BUTTON",L"Choose local model",Model);p->make(L"BUTTON",L"Prepare research model",Start);p->make(L"BUTTON",L"Stop worker",Stop);p->make(L"BUTTON",L"Play preview",Pause);
+   auto consent=p->make(L"BUTTON",L"I have permission to use this model and accept unverified local research output. (This session only.)",Consent,BS_AUTOCHECKBOX);SetWindowTheme(consent,L"",L"");auto view=p->make(L"COMBOBOX",L"Compare view",View,CBS_DROPDOWNLIST);for(auto s:{L"Side by side",L"Split comparison",L"Model output",L"Original input"})SendMessageW(view,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(s));SendMessageW(view,CB_SETCURSEL,0,0);auto divider=p->make(TRACKBAR_CLASSW,L"Comparison divider",Divider,TBS_HORZ|TBS_NOTICKS);SendMessageW(divider,TBM_SETRANGE,TRUE,MAKELPARAM(0,100));SendMessageW(divider,TBM_SETPOS,TRUE,50);
+   p->make(L"BUTTON",L"Export PNG",Export);p->make(L"BUTTON",L"Save report",Report);
+   for(int i=0;i<3;++i){p->make(L"STATIC",L"",200+i);const wchar_t* labels[]={L"Tone",L"Structure",L"Neural blend"};auto slider=p->make(TRACKBAR_CLASSW,labels[i],Tone+i,TBS_HORZ|TBS_NOTICKS);SendMessageW(slider,TBM_SETRANGE,TRUE,MAKELPARAM(0,100));SendMessageW(slider,TBM_SETPOS,TRUE,i==2?100:50);}p->labels();
+   p->info=p->make(L"STATIC",L"Bring compatible model files you are permitted to use. Selection validates schema, tensor bounds and SHA-256 hashes; preparation invokes the real native graph.\nNo model weights are included or downloaded. Start stays disabled until validation and explicit consent.\nThis research preview is independent of the main player's audio, and limited to 512-pixel SDR frames.",209);EnableWindow(GetDlgItem(h,Start),FALSE);EnableWindow(GetDlgItem(h,Export),FALSE);return 0;}
+   case WM_SIZE:p->layout();return 0;case WM_DPICHANGED:{p->fonts();auto r=reinterpret_cast<RECT*>(l);SetWindowPos(h,nullptr,r->left,r->top,r->right-r->left,r->bottom-r->top,SWP_NOZORDER);p->layout();return 0;}
+   case WM_PAINT:p->paint();return 0;case WM_TIMER:p->tick();return 0;case WM_CTLCOLORBTN:case WM_CTLCOLORSTATIC:SetTextColor(reinterpret_cast<HDC>(w),shiny::ui::text);SetBkColor(reinterpret_cast<HDC>(w),shiny::ui::bg);return reinterpret_cast<LRESULT>(shiny::ui::backgroundBrush);
+   case WM_HSCROLL:p->labels();if(reinterpret_cast<HWND>(l)==GetDlgItem(h,Divider))InvalidateRect(h,nullptr,FALSE);else p->forceProcess=true;return 0;
    case WM_COMMAND:if(LOWORD(w)==IDCANCEL){SendMessageW(h,WM_CLOSE,0,0);return 0;}p->action(LOWORD(w));return 0;case WM_KEYDOWN:if(w==VK_ESCAPE){SendMessageW(h,WM_CLOSE,0,0);return 0;}break;
-   case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(l)->ptMinTrackSize={920,600};return 0;
-   case WM_CLOSE:KillTimer(h,1);p->stop();DestroyWindow(h);return 0;case WM_DESTROY:p->hwnd=nullptr;return 0;
+   case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(l)->ptMinTrackSize={p->px(960),p->px(730)};return 0;case WM_CLOSE:KillTimer(h,1);p->stop();DestroyWindow(h);return 0;case WM_DESTROY:p->hwnd=nullptr;return 0;
   }}catch(const std::exception& e){if(p->info)SetWindowTextW(p->info,wide(e.what()).c_str());}return DefWindowProcW(h,m,w,l);
  }
 };

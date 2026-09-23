@@ -26,7 +26,7 @@ class NrSession {
  std::string statusText="Not prepared";bool isReady=false,done=false;uint32_t serial=0;
  void status(std::string text,bool ready=false);
  public:
- explicit NrSession(const std::filesystem::path& model);
+ explicit NrSession(const std::filesystem::path& model,const std::string& researchDigest={});
  ~NrSession();
  void submit(NrImage frame);
  std::optional<NrImage> take();
