@@ -143,15 +143,14 @@ try:
         page.locator('[data-view=enhanced]').click()
         expect(page.locator('#split')).to_have_value('0')
         page.locator('[data-view=split]').click()
-        expect(page.locator('#split')).to_have_value('50')
-        divider = page.locator('#comparison-line')
-        divider.focus(); page.keyboard.press('ArrowRight')
-        expect(page.locator('#split')).to_have_value('51')
+        page.locator('#comparison-line').focus(); page.keyboard.press('Home')
+        expect(page.locator('#split')).to_have_value('0')
         page.keyboard.press('Shift+ArrowRight')
-        expect(page.locator('#split')).to_have_value('61')
+        expect(page.locator('#split')).to_have_value('10')
+        page.locator('[data-view=split]').click()
         box = page.locator('#stage').bounding_box()
-        handle = divider.bounding_box()
-        page.mouse.move(handle['x'] + handle['width']/2, handle['y'] + handle['height']/2)
+        line = page.locator('#comparison-line').bounding_box()
+        page.mouse.move(line['x']+line['width']/2, line['y']+line['height']/2)
         page.mouse.down(); page.mouse.move(box['x']+box['width']*.8, box['y']+box['height']/2, steps=5); page.mouse.up()
         assert 78 <= int(page.locator('#split').input_value()) <= 82
         results.append('persistent presets, custom state, three views and real pointer/keyboard divider')
@@ -229,9 +228,31 @@ try:
         expect(page.locator('#benchmark')).to_be_enabled()
         expect(page.locator('#export')).to_be_enabled()
         results.append('measurement cancellation restores adjustment and export controls')
-        # Single-preview video transport and paused rendering behavior.
+        # Hold the real initial GPU fence to exercise initialization rather than
+        # relying on fast CI timing. Play must not race the pending autoplay.
+        page.locator('#stop').click()
+        page.evaluate("""() => {
+          const original = WebGL2RenderingContext.prototype.clientWaitSync;
+          window.releaseStartupFrame = () => { WebGL2RenderingContext.prototype.clientWaitSync = original; };
+          WebGL2RenderingContext.prototype.clientWaitSync = function() { return this.TIMEOUT_EXPIRED; };
+        }""")
         page.locator('#file').set_input_files({'name':'motion.webm','mimeType':'video/webm','buffer':base64.b64decode(encoded)})
         expect(page.locator('#transport')).to_be_visible()
+        expect(page.locator('#stage')).to_have_attribute('aria-busy', 'true')
+        expect(page.locator('#play')).to_be_disabled()
+        expect(page.locator('#seek')).to_be_disabled()
+        page.evaluate("() => { document.activeElement?.blur(); }")
+        page.keyboard.press('Space')
+        assert page.locator('#source-video').evaluate('(v) => v.paused')
+        # The short fixture loops only for transport testing, avoiding accidental
+        # end-of-file while the test controller waits on a slow hosted GPU.
+        page.locator('#source-video').evaluate('(v) => { v.loop = true; }')
+        page.evaluate('() => window.releaseStartupFrame()')
+        expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
+        expect(page.locator('#play')).to_have_text('Pause')
+        expect(page.locator('#play')).to_be_enabled()
+        results.append('delayed initial GPU frame disables transport and ignores premature keyboard play')
+        # Single-preview video transport and paused rendering behavior.
         page.locator('#play').click()
         expect(page.locator('#play')).to_have_text('Play')
         # Pause permits the in-flight GPU frame and one final refresh to drain.

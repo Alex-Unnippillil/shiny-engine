@@ -170,6 +170,15 @@ def paged(path: str, key: str) -> list[dict]:
     return [entry for page in pages for entry in page[key]]
 
 
+def find_release(repository: str, tag: str) -> dict | None:
+    # The tag endpoint returns published releases only. Authenticated list
+    # releases includes drafts and supports safe resumption after interruption.
+    pages = api(f"repos/{repository}/releases?per_page=100", "--paginate", "--slurp")
+    matches = [release for page in pages for release in page if release.get("tag_name") == tag]
+    require(len(matches) <= 1, "Ambiguous versioned release")
+    return matches[0] if matches else None
+
+
 def remote_assets(release: dict, expected: dict[str, str], complete: bool) -> set[str]:
     assets = release.get("assets", [])
     require(len(assets) == len({a["name"] for a in assets}), "Duplicate remote release asset")
@@ -214,7 +223,7 @@ def publish() -> None:
         unpack(archive, folder)
         sums = verify_bundle(folder, version, sha, run, repo)
         tag = f"v{version}"
-        release = api(f"repos/{repo}/releases/tags/{tag}", optional=True)
+        release = find_release(repo, tag)
         if release:
             require(release.get("target_commitish") == sha and release.get("prerelease") is True,
                     "Existing version belongs to a different revision or release channel")
@@ -232,18 +241,19 @@ def publish() -> None:
                              + f"\nValidated main commit: `{sha}`\n", encoding="utf-8")
             gh("release", "create", tag, "--target", sha, "--draft", "--prerelease", "--repo", repo,
                "--title", f"Shiny Player {version} — Windows player and local NR research", "--notes-file", str(notes))
-            release = api(f"repos/{repo}/releases/tags/{tag}")
+            release = find_release(repo, tag)
+            require(release is not None and release.get("draft") is True, "New draft release could not be resolved")
         present = remote_assets(release, sums, complete=False)
         for name in sorted(sums.keys() - present):
             gh("release", "upload", tag, str(folder / name), "--repo", repo)
-        release = api(f"repos/{repo}/releases/tags/{tag}")
+        release = api(f"repos/{repo}/releases/{release['id']}")
         remote_assets(release, sums, complete=True)
         latest = current_runs()["vlc-player"]
         require((latest["id"], latest["run_attempt"]) == (run["id"], run["run_attempt"]),
                 "Native run changed during publication; draft retained")
         api(f"repos/{repo}/releases/{release['id']}", "--method", "PATCH", "-F", "draft=false",
             "-F", "prerelease=true", "-f", "make_latest=false")
-        remote_assets(api(f"repos/{repo}/releases/tags/{tag}"), sums, complete=True)
+        remote_assets(api(f"repos/{repo}/releases/{release['id']}"), sums, complete=True)
         print(f"Published {tag} from {sha}: {len(sums)} verified assets.")
 
 

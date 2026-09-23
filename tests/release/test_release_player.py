@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from zipfile import ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -129,6 +130,18 @@ class ReleasePolicyTests(unittest.TestCase):
             with ZipFile(portable, "a") as z: z.writestr("unlisted.exe", b"MZunexpected")
             write_sums()
             with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)
+
+    def test_find_draft_release_across_pages(self):
+        draft = {"id": 91, "tag_name": "v0.7.0", "draft": True}
+        with patch.object(r, "api", return_value=[[{"id":90,"tag_name":"v0.6.0","draft":False}], [draft]]) as call:
+            self.assertEqual(r.find_release(REPO, "v0.7.0"), draft)
+            call.assert_called_once_with(f"repos/{REPO}/releases?per_page=100", "--paginate", "--slurp")
+
+    def test_missing_and_ambiguous_release(self):
+        with patch.object(r, "api", return_value=[[]]):
+            self.assertIsNone(r.find_release(REPO, "v0.7.0"))
+        with patch.object(r, "api", return_value=[[{"tag_name":"v0.7.0"}], [{"tag_name":"v0.7.0"}]]):
+            with self.assertRaises(r.ReleaseError): r.find_release(REPO, "v0.7.0")
 
     def test_remote_digests_and_complete_public_release(self):
         expected={"Setup.exe":"a"*64,"SHA256SUMS.txt":"b"*64}

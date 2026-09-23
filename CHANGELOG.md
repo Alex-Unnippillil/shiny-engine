@@ -7,6 +7,7 @@
 - Added numerical tone, structure and mix controls, matched-input comparison modes, pause/reset, explicit PNG/report export and stale-result handling.
 - Made the Windows player DPI-aware with reflowing controls and queue access in compact windows. Expanded cancellation and owner-window lifetime protection.
 - Tested actual Windows decoding, model-data intake, picker cancellation, compact layout and installer playback/uninstall. No trained-model inference or physical-GPU certification is claimed.
+- Prevented browser transport from accepting play/pause while initial rendering/autoplay is pending; added a deliberately delayed-GPU regression.
 - Added draft-first release publication with exact-run identity, archive/portable integrity, remote asset digest verification and immutable published versions.
 
 This is an **unsigned Windows x64 prerelease**. The native experimental preview is independent SDR processing, not audio-synchronized full-resolution neural playback. Model weights are not supplied.
