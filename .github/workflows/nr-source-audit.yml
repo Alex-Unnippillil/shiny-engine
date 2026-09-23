@@ -1,0 +1,28 @@
+name: Native NR source audit
+on:
+  push:
+    branches: [feat/native-nr-player-installers]
+    paths: [.github/workflows/nr-source-audit.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: maanHimself/OpenDLSS-NR
+          ref: 9d08f4184bbcb9d858e2fb7a7834ec0837a9d2f1
+          persist-credentials: false
+      - name: Archive source only, no weights or vendor runtime
+        run: |
+          git archive --format=zip -o native-nr-reference.zip HEAD src scripts shaders docs demo/CMakeLists.txt demo/nr_pass.cpp demo/nr_pass.h demo/shaders LICENSE NOTICE README.md
+          sha256sum native-nr-reference.zip > SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-nr-reference
+          path: |
+            native-nr-reference.zip
+            SHA256SUMS.txt
+          if-no-files-found: error

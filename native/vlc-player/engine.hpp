@@ -6,11 +6,8 @@
 #include <filesystem>
 #include <memory>
 #include <utility>
-
 namespace shiny::player {
-std::string utf8(const std::wstring& value);
-std::wstring wide(const std::string& value);
-std::filesystem::path installedVlc();
+std::string utf8(const std::wstring& value);std::wstring wide(const std::string& value);std::filesystem::path installedVlc();
 #define VLC_SYMBOLS(X) \
  X(New, libvlc_new) X(Release, libvlc_release) X(Version, libvlc_get_version) X(Free, libvlc_free) \
  X(NewPath, libvlc_media_new_path) X(NewLocation, libvlc_media_new_location) X(ReleaseMedia, libvlc_media_release) \
@@ -21,6 +18,7 @@ std::filesystem::path installedVlc();
  X(Length, libvlc_media_player_get_length) X(SetTime, libvlc_media_player_set_time) X(Seekable, libvlc_media_player_is_seekable) \
  X(SetRate, libvlc_media_player_set_rate) X(GetRate, libvlc_media_player_get_rate) X(NextFrame, libvlc_media_player_next_frame) \
  X(SetVolume, libvlc_audio_set_volume) X(GetVolume, libvlc_audio_get_volume) X(SetMute, libvlc_audio_set_mute) \
+ X(Devices, libvlc_audio_output_device_enum) X(FreeDevices, libvlc_audio_output_device_list_release) X(SetDevice, libvlc_audio_output_device_set) \
  X(SetAudioDelay, libvlc_audio_set_delay) X(SetSubtitleDelay, libvlc_video_set_spu_delay) \
  X(GetAudioTracks, libvlc_audio_get_track_description) X(GetSubtitles, libvlc_video_get_spu_description) \
  X(SetAudioTrack, libvlc_audio_set_track) X(GetAudioTrack, libvlc_audio_get_track) \
@@ -37,45 +35,23 @@ std::filesystem::path installedVlc();
  X(SetCallbacks, libvlc_video_set_callbacks) X(SetFormat, libvlc_video_set_format)
 class VlcApi {
  public:
-  std::filesystem::path root;
-  std::string runtimeVersion;
-  static std::shared_ptr<VlcApi> load(const std::filesystem::path& folder);
-  ~VlcApi();
-  VlcApi(const VlcApi&) = delete; VlcApi& operator=(const VlcApi&) = delete;
-#define FIELD(field, symbol) decltype(&symbol) field = nullptr;
-  VLC_SYMBOLS(FIELD)
+ std::filesystem::path root;std::string runtimeVersion;static std::shared_ptr<VlcApi> load(const std::filesystem::path& folder);~VlcApi();
+ VlcApi(const VlcApi&)=delete;VlcApi& operator=(const VlcApi&)=delete;
+#define FIELD(field,symbol) decltype(&symbol) field=nullptr;
+ VLC_SYMBOLS(FIELD)
 #undef FIELD
- private:
-  VlcApi()=default;
-  HMODULE module=nullptr, core=nullptr;
-  DLL_DIRECTORY_COOKIE directory=nullptr;
+ private:VlcApi()=default;HMODULE module=nullptr,core=nullptr;DLL_DIRECTORY_COOKIE directory=nullptr;
 };
 class Engine {
  public:
-  std::shared_ptr<VlcApi> api;
-  libvlc_instance_t* instance=nullptr;
-  libvlc_media_player_t* player=nullptr;
-  libvlc_media_t* media=nullptr;
-  Effects effects;
-  bool driverSuperResolutionRequested=false;
-  explicit Engine(std::shared_ptr<VlcApi> runtime, HWND surface, bool silent=false, bool test=false, bool driverSuper=false);
-  ~Engine();
-  Engine(const Engine&)=delete; Engine& operator=(const Engine&)=delete;
-  void open(const Item& item);
-  void stop();
-  void pause(bool value);
-  bool seek(int64_t milliseconds);
-  void applyEffects();
-  void equalizer(int index);
-  void subtitle(const std::filesystem::path& file);
-  std::vector<std::pair<int,std::wstring>> tracks(bool audio) const;
-  bool snapshot(const std::filesystem::path& file) const;
-  bool playing() const {return api->State(player)==libvlc_Playing;}
-  int64_t time() const {return api->Time(player);}
-  int64_t length() const {return api->Length(player);}
-  bool seekable() const {return api->Seekable(player)!=0;}
- private:
-  bool silent=false;
+ std::shared_ptr<VlcApi> api;libvlc_instance_t* instance=nullptr;libvlc_media_player_t* player=nullptr;libvlc_media_t* media=nullptr;
+ Effects effects;bool driverSuperResolutionRequested=false;
+ explicit Engine(std::shared_ptr<VlcApi>,HWND,bool silent=false,bool test=false,bool driverSuper=false);~Engine();
+ Engine(const Engine&)=delete;Engine& operator=(const Engine&)=delete;
+ void open(const Item&);void stop();void pause(bool);bool seek(int64_t);void applyEffects();void equalizer(int);void subtitle(const std::filesystem::path&);
+ std::vector<std::pair<int,std::wstring>> tracks(bool audio)const;bool snapshot(const std::filesystem::path&)const;
+ bool playing()const{return api->State(player)==libvlc_Playing;}int64_t time()const{return api->Time(player);}int64_t length()const{return api->Length(player);}bool seekable()const{return api->Seekable(player)!=0;}
+ private:bool silent=false;
 };
-int playbackTest(const std::filesystem::path& root,const std::filesystem::path& fixture,const std::filesystem::path& report);
+int playbackTest(const std::filesystem::path&,const std::filesystem::path&,const std::filesystem::path&);
 }
