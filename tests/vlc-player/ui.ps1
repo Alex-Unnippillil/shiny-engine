@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 public static class ShinyUiTest {
  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h,int msg,IntPtr w,IntPtr l);
+ [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h,int msg,IntPtr w,IntPtr l);
  [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr h,int id);
  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
  [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr h);
@@ -18,6 +19,10 @@ public static class ShinyUiTest {
  [DllImport("user32.dll")] public static extern int GetMenuItemCount(IntPtr h);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);
  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);
+ [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h,int x,int y,int w,int height,bool repaint);
+ [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
+ [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h,ref Point p);
+ [StructLayout(LayoutKind.Sequential)] public struct Point { public int X,Y; }
  [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h,out Rect r);
  [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
 }
@@ -51,17 +56,54 @@ try {
  if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,103))) { throw 'Unreviewed native inference was enabled' }
  Start-Sleep -Milliseconds 1500
  Snapshot $panel 'player-neural-workbench.png'
- $passed.Add('native neural panel opens with original preview and disabled model preparation')
- # IsDialogMessage routes Escape from focused controls through IDCANCEL.
+ $passed.Add('native neural panel opens with original preview and disabled preparation until valid intake')
+ [void][ShinyUiTest]::SendMessage([ShinyUiTest]::GetDlgItem($panel,109),0xF1,[IntPtr]1,[IntPtr]::Zero)
+ Command $panel 109
+ Command $panel 110
+ Start-Sleep -Milliseconds 200
+ if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,103))) { throw 'Research checkbox enabled preparation without any inspected model' }
+ if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,113))) { throw 'Output export available before any inference result' }
+ Snapshot $panel 'player-research-mode.png'
+ $passed.Add('research selection alone does not bypass intake or fabricate an exportable result')
+ # Open the actual modal folder picker asynchronously. The primary owner must
+ # remain disabled until cancellation, so its auto-next timer cannot destroy
+ # the research panel on a nested message loop.
+ [void][ShinyUiTest]::PostMessage($panel,0x111,[IntPtr]102,[IntPtr]::Zero)
+ $picker=[IntPtr]::Zero
+ Wait-For { $script:picker=[ShinyUiTest]::FindWindow('#32770',[IntPtr]::Zero); $picker -ne [IntPtr]::Zero -and [ShinyUiTest]::GetWindow($picker,4) -eq $panel } 'model folder picker'
+ if ([ShinyUiTest]::IsWindowEnabled($main)) { throw 'Primary owner remained enabled during the research picker' }
+ [void][ShinyUiTest]::PostMessage($picker,0x111,[IntPtr]2,[IntPtr]::Zero)
+ Wait-For { -not [ShinyUiTest]::IsWindow($picker) -and [ShinyUiTest]::IsWindowEnabled($main) -and [ShinyUiTest]::IsWindowEnabled($panel) } 'picker cancellation and owner recovery'
+ if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,103))) { throw 'Cancelled picker granted model authorization' }
+ $passed.Add('real folder-picker cancellation restores owner controls without authorizing a model')
  Command $panel 2
  Wait-For { -not [ShinyUiTest]::IsWindow($panel) } 'panel closes'
  if (-not [ShinyUiTest]::IsWindow($main)) { throw 'Workbench closure destroyed primary playback' }
  $passed.Add('dialog cancellation disposes secondary session without closing primary player')
+ # Exercise the actual responsive Win32 layout, not just its portable geometry.
+ $before=[ShinyUiTest+Rect]::new()
+ if (-not [ShinyUiTest]::GetWindowRect($main,[ref]$before)) { throw 'Cannot read player rectangle' }
+ if (-not [ShinyUiTest]::MoveWindow($main,$before.Left,$before.Top,740,640,$true)) { throw 'Cannot resize player' }
+ Wait-For { -not [ShinyUiTest]::IsWindowVisible([ShinyUiTest]::GetDlgItem($main,204)) } 'compact layout sidebar hides'
+ $client=[ShinyUiTest+Rect]::new();$origin=[ShinyUiTest+Point]::new()
+ [void][ShinyUiTest]::GetClientRect($main,[ref]$client)
+ [void][ShinyUiTest]::ClientToScreen($main,[ref]$origin)
+ foreach ($id in @(101,137,110,111,201,202,203)) {
+  $control=[ShinyUiTest]::GetDlgItem($main,$id)
+  if (-not [ShinyUiTest]::IsWindowVisible($control)) { throw "Compact layout hid essential control $id" }
+  $rect=[ShinyUiTest+Rect]::new();[void][ShinyUiTest]::GetWindowRect($control,[ref]$rect)
+  # Combo box's closed window rectangle is the visible transport control.
+  if ($rect.Left -lt $origin.X -or $rect.Top -lt $origin.Y -or $rect.Right -gt ($origin.X+$client.Right) -or $rect.Bottom -gt ($origin.Y+$client.Bottom)) { throw "Compact control $id extends outside the client area" }
+ }
+ Snapshot $main 'player-compact.png'
+ [void][ShinyUiTest]::MoveWindow($main,$before.Left,$before.Top,($before.Right-$before.Left),($before.Bottom-$before.Top),$true)
+ Wait-For { [ShinyUiTest]::IsWindowVisible([ShinyUiTest]::GetDlgItem($main,204)) } 'expanded layout restores queue'
+ $passed.Add('compact native window keeps transport, seek, volume and research controls inside the viewport and restores the queue')
  Command $main 111
  Command $main 110
  Wait-For { (Text ([ShinyUiTest]::GetDlgItem($main,304))) -match '^Playing with libVLC' } 'reopen primary playback'
  $passed.Add('stop and replay remain usable after workbench teardown')
- @{passed=$passed;trainedModelInference=$false;physicalGpuValidated=$false;scope='Actual Windows user-interface actions with original synthetic media. No trained model or sound-device certification.'} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-workbench-report.json')
+ @{passed=$passed;trainedModelInference=$false;physicalGpuValidated=$false;scope='Actual Windows UI and folder dialog with original synthetic media. No trained model, neural export or sound-device certification.'} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-workbench-report.json')
 } catch {
  $failure = $_
  if ($main -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($main)) {
@@ -70,6 +112,6 @@ try {
  }
  throw $failure
 } finally {
- if ($main -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($main)) { [void][ShinyUiTest]::SendMessage($main,0x10,[IntPtr]::Zero,[IntPtr]::Zero) }
+ if ($main -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($main)) { [void][ShinyUiTest]::PostMessage($main,0x10,[IntPtr]::Zero,[IntPtr]::Zero) }
  if (-not $proc.WaitForExit(10000)) { $proc.Kill();throw 'Player failed to close after UI checks' }
 }

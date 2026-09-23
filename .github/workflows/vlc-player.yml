@@ -1,7 +1,7 @@
 name: VLC desktop player
 on:
   push:
-    branches: [main, feat/vlc-desktop-player, feat/native-nr-player-installers]
+    branches: [main, 'release/**', feat/vlc-desktop-player, feat/native-nr-player-installers, feat/research-model-playback-0.7]
   pull_request:
 permissions:
   contents: read
@@ -105,6 +105,7 @@ jobs:
           Copy-Item native/vlc-player/README.md artifacts/package/
           Copy-Item native/vlc-player/THIRD_PARTY_NOTICES.md artifacts/package/
           Copy-Item docs/native-neural.md artifacts/package/
+          Copy-Item docs/research-mode.md artifacts/package/
           Copy-Item LICENSE artifacts/package/
           Copy-Item .deps/vlc-source/COPYING.LIB artifacts/package/LGPL-2.1.txt
           Copy-Item .deps/nr/LICENSE artifacts/package/nr/OpenDLSS-LICENSE.txt
@@ -112,23 +113,40 @@ jobs:
           Copy-Item .deps/volk/LICENSE.md artifacts/package/nr/volk-LICENSE.txt
           Copy-Item .deps/vulkan/LICENSE.md artifacts/package/nr/Vulkan-Headers-LICENSE.txt
           Get-ChildItem artifacts/package -File -Recurse | Sort-Object FullName | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() + '  ' + [IO.Path]::GetRelativePath((Join-Path $PWD 'artifacts/package'), $_.FullName).Replace('\','/') } | Set-Content artifacts/package/SHA256SUMS.txt
-          Compress-Archive artifacts/package/* artifacts/vlc/ShinyPlayer-0.6.0-Windows-x64-Portable.zip
+          Compress-Archive artifacts/package/* artifacts/vlc/ShinyPlayer-0.7.0-Windows-x64-Portable.zip
           $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
           if (-not (Test-Path $iscc)) { throw 'Inno Setup compiler unavailable' }
           & $iscc /Qp "/DPackageDir=$PWD/artifacts/package" installers/windows/player.iss 2>&1 | Tee-Object artifacts/vlc/installer-build.log
           if ($LASTEXITCODE) { throw 'Windows installer compile failed' }
-          git archive --format=zip -o artifacts/vlc/ShinyPlayer-0.6.0-Source.zip HEAD
+          git archive --format=zip -o artifacts/vlc/ShinyPlayer-0.7.0-Source.zip HEAD
           git -C .deps/nr archive --format=zip -o ../../artifacts/vlc/OpenDLSS-NR-Pinned-Source.zip HEAD src shaders scripts LICENSE NOTICE
       - name: Exercise setup, cached verified VLC prerequisite, playback and uninstall
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           & ./installers/windows/smoke.ps1
+      - name: Bind packaged artifacts to this source and workflow attempt
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sha = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -or $sha -notmatch '^[0-9a-f]{40}$') { throw 'Cannot determine source revision' }
+          @{
+            schema = 1
+            version = '0.7.0'
+            source_sha = $sha
+            source_tree = (git rev-parse 'HEAD^{tree}').Trim()
+            repository = $env:GITHUB_REPOSITORY
+            workflow_run_id = [long]$env:GITHUB_RUN_ID
+            workflow_run_attempt = [int]$env:GITHUB_RUN_ATTEMPT
+            signed = $false
+            trained_model_inference = $false
+          } | ConvertTo-Json | Set-Content artifacts/vlc/build-info.json
       - name: Release checksums
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          Get-ChildItem artifacts/vlc -File | Where-Object { $_.Extension -in '.zip', '.exe' } | Sort-Object Name | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() + '  ' + $_.Name } | Set-Content artifacts/vlc/SHA256SUMS.txt
+          Get-ChildItem artifacts/vlc -File | Where-Object { $_.Extension -in '.zip', '.exe', '.png', '.json' } | Sort-Object Name | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() + '  ' + $_.Name } | Set-Content artifacts/vlc/SHA256SUMS.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

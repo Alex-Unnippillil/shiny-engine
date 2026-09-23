@@ -27,7 +27,7 @@ class Runtime {
  uint32_t width=0,height=0;
  void releaseFrame(){graph.reset();context.destroyBuffer(features.buffer);context.destroyBuffer(proxy);}
  public:
- Runtime(const std::filesystem::path& modelDir,const std::filesystem::path& program):context(),model(context,utf8(modelDir),true),kernels(context,utf8(program/L"shaders")){
+ Runtime(const std::filesystem::path& modelDir,const std::filesystem::path& program):context(),model(context,utf8(modelDir),false),kernels(context,utf8(program/L"shaders")){
   if(model.blockCount()!=71)throw std::runtime_error("Unexpected block count.");kernels.setSiluTable(ref::siluTable());
  }
  ~Runtime(){releaseFrame();}
@@ -53,18 +53,31 @@ int wmain(int argc,wchar_t** argv){
  SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
  int output=_dup(_fileno(stdout));_setmode(output,_O_BINARY);_setmode(_fileno(stdin),_O_BINARY);
  _dup2(_fileno(stderr),_fileno(stdout)); // Upstream printf must not corrupt protocol bytes.
- const bool serve=argc==3&&std::wstring(argv[1])==L"--serve";
+ const bool research=argc==4&&std::wstring(argv[1])==L"--serve-research";
+ const bool serve=(argc==3&&std::wstring(argv[1])==L"--serve")||research;
  try{
   const auto program=executableDir();_wputenv_s(L"DLSS5VK_PTX_DIR",(program/L"ptx").c_str());
   if(argc==2&&std::wstring(argv[1])==L"--probe"){
    vk::Context context;std::string result="Native Vulkan feature/device creation passed on "+context.deviceName()+". Model approval and inference are separate and not tested by this probe.";exactWrite(output,result.data(),result.size());_close(output);return 0;
   }
+  if(argc==3&&std::wstring(argv[1])==L"--inspect-research"){
+   // Intake checks neither load GPU buffers nor grant production model approval.
+   auto expected=nrpolicy::fingerprint(argv[2]);
+   nrpolicy::ModelGuard guard(argv[2],nrpolicy::Access::LocalResearch,expected);
+   std::string result="RESEARCH_INPUT_VALIDATED\nMANIFEST_SHA256="+guard.digest+"\n"+std::string(nrpolicy::researchNotice)+"\nStage hashes and tensor bounds passed. Next: acknowledge authorized use and prepare. No model inference ran during this check.";
+   exactWrite(output,result.data(),result.size());_close(output);return 0;
+  }
   if(argc==3&&std::wstring(argv[1])==L"--inspect"){
    auto digest=nrpolicy::fingerprint(argv[2]);std::string result="Manifest SHA-256: "+digest+"\n"+(nrpolicy::approved(digest)?"Reviewed native model identity. Stage hashes and GPU must still pass at preparation.":"MODEL_NOT_REVIEWED: no native runtime-use and correctness approval. No weights loaded and no inference run.");exactWrite(output,result.data(),result.size());_close(output);return nrpolicy::approved(digest)?0:3;
   }
-  if(!serve)throw std::runtime_error("Usage: ShinyNrWorker --probe | --inspect MODEL_DIRECTORY | --serve MODEL_DIRECTORY");
-  nrpolicy::ModelGuard guard(argv[2]);
-  Runtime runtime(argv[2],program);reply(output,nrwire::Ready,"Prepared "+runtime.device()+"; independent SDR preview, no temporal history.");
+  if(!serve)throw std::runtime_error("Usage: ShinyNrWorker --probe | --inspect MODEL_DIRECTORY | --inspect-research MODEL_DIRECTORY | --serve MODEL_DIRECTORY | --serve-research MODEL_DIRECTORY ACKNOWLEDGED_SHA256");
+  std::string consented;
+  if(research){std::wstring token=argv[3];if(token.size()!=64||token.find_first_not_of(L"0123456789abcdef")!=std::wstring::npos)throw std::runtime_error("Invalid acknowledged model SHA-256.");consented.assign(token.begin(),token.end());}
+  nrpolicy::ModelGuard guard(argv[2],research?nrpolicy::Access::LocalResearch:nrpolicy::Access::Reviewed,consented);
+  // Every stage is hash-checked under read locks before the upstream loader reads it.
+  // Disable its duplicate case-sensitive SHA comparison, not our validation.
+  Runtime runtime(guard.directory(),program);
+  reply(output,nrwire::Ready,(research?std::string(nrpolicy::researchNotice):"REVIEWED MODEL")+"; model loaded on "+runtime.device()+". Awaiting first frame; independent SDR, no temporal history.");
   uint32_t lastSequence=0;
   for(;;){nrwire::Header h;exactRead(&h,sizeof h);nrwire::validate(h);if(h.command==nrwire::Stop)break;
    if(!h.sequence||h.sequence<=lastSequence)throw std::runtime_error("Stale or duplicate frame request.");lastSequence=h.sequence;

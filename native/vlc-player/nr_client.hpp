@@ -19,18 +19,18 @@ class NrProcess {
  std::string readText(std::stop_token,unsigned timeoutMs=30000);
  bool succeeded()const;
 };
-struct NrImage {nrwire::Header header;std::vector<uint8_t> original,enhanced;double milliseconds=0;};
+struct NrImage {nrwire::Header header;std::vector<uint8_t> original,enhanced;double milliseconds=0;uint64_t controlRevision=0;int64_t sourceTimeMs=0;};
 class NrSession {
  std::mutex mutex;std::condition_variable_any changed;std::jthread thread;
  std::shared_ptr<NrProcess> process;std::optional<NrImage> pending,complete;
  std::string statusText="Not prepared";bool isReady=false,done=false;uint32_t serial=0;
  void status(std::string text,bool ready=false);
  public:
- explicit NrSession(const std::filesystem::path& model);
+ explicit NrSession(const std::filesystem::path& model, std::string researchDigest={});
  ~NrSession();
  void submit(NrImage frame);
  std::optional<NrImage> take();
- std::string status();bool ready();
+ std::string status();bool ready();bool finished();
 };
 // A separate muted decoder, not synchronized to main-player audio.
 class NrSource {

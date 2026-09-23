@@ -27,6 +27,8 @@ let samples: number[] = [], lastSplit = config.split > 0 && config.split < 1 ? c
 let nativeSession: string | null = null, nativeConnected = false, nativeBusy = false;
 let storageWarningShown = false, dragging = false;
 let videoVolume = 1, videoMuted = false, videoRate = 1;
+// A committed source is not interactive until its initial render and autoplay settle.
+let initializingVideo: HTMLVideoElement | null = null;
 const currentVideo = () => active?.source instanceof HTMLVideoElement ? active.source : null;
 function status(message: string, error = false) {
   element('status').textContent = message; element('status').classList.toggle('error', error);
@@ -107,7 +109,7 @@ function cleanup() {
   // Stop audio and capture immediately; retain media surfaces until their GPU consumer completes.
   const video = currentVideo(); video?.pause();
   if (video?.srcObject instanceof MediaStream) video.srcObject.getTracks().forEach(track => track.stop());
-  renderer = null; active = null; canvas = null; inFlight = null; dirty = false;
+  renderer = null; active = null; initializingVideo = null; canvas = null; inFlight = null; dirty = false;
   if (pending) void pending.catch(() => {}).finally(() => { old?.release(); media?.dispose(); });
   else { old?.release(); media?.dispose(); }
   mount.replaceChildren(); element('source-slot').replaceChildren(); samples = []; diagnostics();
@@ -177,7 +179,7 @@ async function attach(media: Media, signal: AbortSignal) {
   element('input-dimensions').textContent = `${width} × ${height} source`;
   stage.style.setProperty('--source-ratio', String(width / height));
   element('empty').hidden = true;
-  const video = currentVideo();
+  const video = currentVideo(); initializingVideo = video;
   if (video) {
     video.id = 'source-video'; video.setAttribute('aria-label', 'Original video playback'); video.hidden = true;
     element('source-slot').replaceChildren(video);
@@ -203,7 +205,7 @@ async function attach(media: Media, signal: AbortSignal) {
     }
     status(media.kind === 'capture' ? 'Window sharing is active. Audio stays in the source app. Stop session ends capture.' : 'Ready. Drag the divider to compare. Your file stays on this device.');
   } catch (error) { if (epoch === generation) fallback(error); }
-  finally { if (epoch === generation) { finishLoad(signal); controls(); } }
+  finally { if (epoch === generation) { initializingVideo = null; finishLoad(signal); controls(); } }
 }
 async function openFile(file: File) {
   try { fileType(file); } catch (error) { status((error as Error).message, true); return; }
@@ -288,9 +290,12 @@ function updateTransport() {
   element('transport').hidden = !video || !renderer;
   if (!video) return;
   const live = active?.kind === 'capture', duration = video.duration;
+  const starting = video === initializingVideo;
+  element<HTMLButtonElement>('play').disabled = starting;
+  for (const id of ['mute', 'volume', 'rate']) element<HTMLInputElement>(id).disabled = starting;
   const seek = element<HTMLInputElement>('seek');
   element('seek-controls').hidden = live;
-  seek.disabled = !Number.isFinite(duration) || duration <= 0; seek.max = String(Number.isFinite(duration) ? duration : 0);
+  seek.disabled = starting || !Number.isFinite(duration) || duration <= 0; seek.max = String(Number.isFinite(duration) ? duration : 0);
   if (document.activeElement !== seek) seek.value = String(video.currentTime);
   seek.setAttribute('aria-valuetext', `${formatTime(video.currentTime)} of ${formatTime(duration)}`);
   element('time').textContent = live ? 'LIVE' : `${formatTime(video.currentTime)} / ${formatTime(duration)}`;
@@ -303,7 +308,7 @@ function updateTransport() {
   element<HTMLSelectElement>('rate').value = String(video.playbackRate);
 }
 async function playPause() {
-  const video = currentVideo(); if (!video) return;
+  const video = currentVideo(); if (!video || video === initializingVideo) return;
   if (video.paused || video.ended) { try { await video.play(); } catch { status('Playback could not start. Try re-opening this file.', true); } }
   else video.pause();
 }

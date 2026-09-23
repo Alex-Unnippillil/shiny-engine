@@ -229,9 +229,31 @@ try:
         expect(page.locator('#benchmark')).to_be_enabled()
         expect(page.locator('#export')).to_be_enabled()
         results.append('measurement cancellation restores adjustment and export controls')
-        # Single-preview video transport and paused rendering behavior.
+        # Hold the real initial GPU fence to exercise initialization rather than
+        # relying on fast CI timing. Play must not race the pending autoplay.
+        page.locator('#stop').click()
+        page.evaluate("""() => {
+          const original = WebGL2RenderingContext.prototype.clientWaitSync;
+          window.releaseStartupFrame = () => { WebGL2RenderingContext.prototype.clientWaitSync = original; };
+          WebGL2RenderingContext.prototype.clientWaitSync = function() { return this.TIMEOUT_EXPIRED; };
+        }""")
         page.locator('#file').set_input_files({'name':'motion.webm','mimeType':'video/webm','buffer':base64.b64decode(encoded)})
         expect(page.locator('#transport')).to_be_visible()
+        expect(page.locator('#stage')).to_have_attribute('aria-busy', 'true')
+        expect(page.locator('#play')).to_be_disabled()
+        expect(page.locator('#seek')).to_be_disabled()
+        page.evaluate("() => { document.activeElement?.blur(); }")
+        page.keyboard.press('Space')
+        assert page.locator('#source-video').evaluate('(v) => v.paused')
+        # The short fixture loops only for transport testing, avoiding accidental
+        # end-of-file while the test controller waits on a slow hosted GPU.
+        page.locator('#source-video').evaluate('(v) => { v.loop = true; }')
+        page.evaluate('() => window.releaseStartupFrame()')
+        expect(page.locator('#stage')).to_have_attribute('aria-busy', 'false')
+        expect(page.locator('#play')).to_have_text('Pause')
+        expect(page.locator('#play')).to_be_enabled()
+        results.append('delayed initial GPU frame disables transport and ignores premature keyboard play')
+        # Single-preview video transport and paused rendering behavior.
         page.locator('#play').click()
         expect(page.locator('#play')).to_have_text('Play')
         # Pause permits the in-flight GPU frame and one final refresh to drain.
@@ -285,6 +307,12 @@ try:
             popup.goto(f'chrome-extension://{extension_id}/apps/extension/popup.html')
             expect(popup.locator('#inline')).to_be_disabled()
             expect(popup.locator('#capture')).to_be_disabled()
+            # Extension documents may be attached before their first composited
+            # frame exists on a busy headless runner. Require actual visibility
+            # and two animation frames before requesting the evidence image.
+            popup.bring_to_front()
+            expect(popup.locator('#lab')).to_be_visible()
+            popup.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
             popup.screenshot(path=str(OUT / 'extension-popup.png'))
             with context.expect_page() as opened:
                 popup.locator('#lab').click()
