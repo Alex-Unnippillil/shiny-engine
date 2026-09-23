@@ -78,7 +78,9 @@ int playbackTest(const std::filesystem::path& root,const std::filesystem::path& 
       check(engine.seek(5000)&&until([&]{return engine.time()>=4800&&engine.time()<7000;}),"seek changes the actual media position");
       check(api->SetRate(engine.player,1.25f)==0&&std::abs(api->GetRate(engine.player)-1.25f)<.01f,"playback rate accepted and read back");api->SetRate(engine.player,1.f);
       baseline=frames.average();engine.effects.enabled=true;engine.effects.brightness=1.6f;engine.applyEffects();
-      check(api->GetAdjustInt(engine.player,libvlc_adjust_Enable)!=0,"live VLC adjust filter enabled");
+      // VLC 3's enable getter searches sub-source, not the video-filter chain.
+      // Validate the parameter plus actual output pixels instead of trusting that getter.
+      check(std::abs(api->GetAdjust(engine.player,libvlc_adjust_Brightness)-1.6f)<.01f,"brightness parameter accepted by libVLC");
       check(until([&]{enhanced=frames.average();return std::abs(enhanced-baseline)>15;}),"real decoded output changes after brightness adjustment");
       engine.effects.enabled=false;engine.applyEffects();
       check(until([&]{return std::abs(frames.average()-baseline)<4;}),"bypass restores original fixture pixels");

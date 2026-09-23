@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Shiny Engine — Local Media Enhancement",
   "description": "Local spatial media enhancement and an experimental OpenDLSS-NR lab. No models bundled; neural activation requires approval.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "scripting", "storage"],
   "optional_permissions": ["tabCapture", "nativeMessaging"],

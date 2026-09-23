@@ -8,7 +8,7 @@ function status(text: string, error = false) {
 }
 function controls() {
   for (const id of tabButtons) (document.getElementById(id) as HTMLButtonElement).disabled = busy || !eligible;
-  for (const id of ['lab', 'neural', 'looklock']) (document.getElementById(id) as HTMLButtonElement).disabled = busy;
+  for (const id of ['lab', 'neural', 'looklock', 'player']) (document.getElementById(id) as HTMLButtonElement).disabled = busy;
 }
 function action(id: string, progress: string, callback: () => Promise<void>) {
   document.getElementById(id)!.addEventListener('click', () => {
@@ -29,6 +29,7 @@ function report(value: unknown) {
   status(String(value.message ?? 'Done.'));
 }
 action('lab', 'Opening your local workbench…', async () => { await api.tabs.create({ url: api.runtime.getURL('apps/viewer/index.html') }); status('Media Lab opened. Choose a local file to begin.'); });
+action('player', 'Opening Windows player setup…', async () => { await api.tabs.create({ url: api.runtime.getURL('apps/player/index.html') }); status('Player setup opened. Run the separate Windows executable after installation.'); });
 action('looklock', 'Opening the local frame-review studio…', async () => { await api.tabs.create({ url: api.runtime.getURL('apps/looklock/index.html') }); status('LookLock opened. Import matching original and treated frames.'); });
 action('neural', 'Opening the isolated neural workspace…', async () => { await api.tabs.create({ url: api.runtime.getURL('apps/nr/index.html') }); status('Neural Lab opened. The model approval gate is enforced before inference.'); });
 action('inline', 'Checking the player and preparing local graphics…', async () => {
