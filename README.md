@@ -84,6 +84,9 @@ No NVIDIA runtime, model weights, extraction scripts, caller-validation bridges 
 
 No 4K/HDR neural output, live desktop overlay, video-wide enhancement export or real-time frame-rate promise is made.
 
+![Compact Windows layout](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.7.0/player-compact.png)
+*Actual compact-window test; primary controls remain available when the sidebar is hidden.*
+
 ![Cinema mode](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.7.0/player-cinema.png)
 
 ## Keyboard
@@ -92,7 +95,7 @@ No 4K/HDR neural output, live desktop overlay, video-wide enhancement export or 
 
 ## Build and test
 
-Windows requires Visual Studio C++ and Windows SDK, CMake3.24+, Python3, Git and Inno Setup6. From the repository root:
+Windows requires Visual Studio C++ and Windows SDK, CMake 3.24+, Python 3, Git and Inno Setup 6. From the repository root:
 
 ```powershell
 powershell -File scripts/Build-Windows.ps1
@@ -100,7 +103,7 @@ powershell -File scripts/Build-Windows.ps1
 
 This builds the player, native graph worker, kernels, portable ZIP and installer using immutable upstream pins and archive hashes. The player-only CMake target does not build its worker. Detailed equivalent steps are in [.github/workflows/vlc-player.yml](.github/workflows/vlc-player.yml).
 
-Browser workspaces require Node22+:
+Browser workspaces require Node.js 22+:
 
 ```sh
 git clone --recurse-submodules https://github.com/Alex-Unnippillil/shiny-engine.git
@@ -117,9 +120,9 @@ Open `http://127.0.0.1:4173`. For an existing checkout, run `git submodule updat
 
 ## Verification and release policy
 
-Publishing requires the **exact current main commit** to pass `browser-build`, `windows-build` and `vlc-player`. The workflow downloads that revision's native artifact, verifies checksums, and refuses to overwrite versioned releases. Reports and the actual screenshots accompany the release.
+Publishing requires the **exact current main commit** to pass `browser-build`, `windows-build` and `vlc-player`. The workflow binds the newest successful runs to their checks, verifies GitHub’s archive digest, build provenance and complete package checksums, stages a draft release, and compares remote asset digests before publication. Stale builds and altered or incomplete releases are rejected; published versions are never overwritten. Reports and the actual screenshots accompany the release.
 
-Tests cover real libVLC software decoding, filters/bypass, subtitles, pause/resume/seek, secondary decoder cleanup, model rejection, synthetic metadata/intake, responsive layouts, browser/extension routing, and Windows install/playback/uninstall. Generated zero tensors and synthetic residuals are **not trained-model tests**. Separate authorized trained fixtures, quality review, named-hardware measurements, sustained A/V testing and signing remain necessary for stronger production claims. See [implementation status](docs/implementation-status.md) and the [unchanged original plan](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md).
+Tests cover real libVLC software decoding, filters/bypass, subtitles, pause/resume/seek, secondary decoder cleanup, model rejection, synthetic metadata/intake, responsive layouts, browser/extension routing, and Windows install/playback/uninstall. Generated zero tensors and synthetic residuals are **not trained-model tests**. Separate authorized trained fixtures, quality review, named-hardware measurements, sustained A/V testing and signing remain necessary for stronger production claims. See [release integrity](docs/release-integrity.md), [implementation status](docs/implementation-status.md) and the [unchanged original plan](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md).
 
 ## Privacy and source
 

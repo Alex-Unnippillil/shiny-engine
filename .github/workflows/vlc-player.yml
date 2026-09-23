@@ -125,6 +125,23 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           & ./installers/windows/smoke.ps1
+      - name: Bind packaged artifacts to this source and workflow attempt
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sha = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -or $sha -notmatch '^[0-9a-f]{40}$') { throw 'Cannot determine source revision' }
+          @{
+            schema = 1
+            version = '0.7.0'
+            source_sha = $sha
+            source_tree = (git rev-parse 'HEAD^{tree}').Trim()
+            repository = $env:GITHUB_REPOSITORY
+            workflow_run_id = [long]$env:GITHUB_RUN_ID
+            workflow_run_attempt = [int]$env:GITHUB_RUN_ATTEMPT
+            signed = $false
+            trained_model_inference = $false
+          } | ConvertTo-Json | Set-Content artifacts/vlc/build-info.json
       - name: Release checksums
         shell: pwsh
         run: |

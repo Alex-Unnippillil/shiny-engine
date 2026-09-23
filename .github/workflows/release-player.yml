@@ -24,60 +24,21 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
-      - name: Require the current main revision and its latest GitHub Actions checks
+      - name: Reject an obsolete main event before checkout
         id: gate
         shell: bash
         run: |
           set -euo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
           CURRENT_MAIN=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
-          if [[ "$CURRENT_MAIN" != "$RELEASE_SHA" ]]; then
-            echo 'ready=false' >> "$GITHUB_OUTPUT"
-            exit 0
+          if [[ "$CURRENT_MAIN" == "$RELEASE_SHA" ]]; then
+            echo 'current=true' >> "$GITHUB_OUTPUT"
           fi
-          gh api "repos/$GH_REPO/commits/$RELEASE_SHA/check-runs?per_page=100" > /tmp/checks.json
-          python - <<'PY'
-          import json, os
-          checks=json.load(open('/tmp/checks.json'))['check_runs']
-          required={'browser-build','windows-build','vlc-player'}
-          latest={}
-          for check in sorted(checks,key=lambda c:c['id']):
-            if check['head_sha']==os.environ['RELEASE_SHA'] and check['name'] in required and check.get('app',{}).get('slug')=='github-actions':
-              latest[check['name']]=check
-          ready=required<=latest.keys() and all(c['status']=='completed' and c['conclusion']=='success' for c in latest.values())
-          with open(os.environ['GITHUB_OUTPUT'],'a') as out: out.write('ready='+str(ready).lower()+'\n')
-          PY
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        if: steps.gate.outputs.ready == 'true'
+        if: steps.gate.outputs.current == 'true'
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           persist-credentials: false
-      - name: Publish tested binaries, evidence and screenshots without overwriting a version
-        if: steps.gate.outputs.ready == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          [[ "$(node -p "require('./package.json').version")" == '0.7.0' ]]
-          if gh api "repos/$GH_REPO/releases/tags/v0.7.0" > /tmp/existing.json 2>/dev/null; then
-            python - <<'PY'
-          import json,os
-          release=json.load(open('/tmp/existing.json'))
-          assert release['target_commitish']==os.environ['RELEASE_SHA'], 'Existing version points at another revision; never overwrite it'
-          print('This exact version is already published; keeping immutable artifacts.')
-          PY
-            exit 0
-          fi
-          gh api "repos/$GH_REPO/actions/runs?head_sha=$RELEASE_SHA&event=push&per_page=100" > /tmp/runs.json
-          RUN=$(python - <<'PY'
-          import json,os
-          runs=json.load(open('/tmp/runs.json'))['workflow_runs']
-          valid=[r['id'] for r in runs if r['path']=='.github/workflows/vlc-player.yml' and r['head_sha']==os.environ['RELEASE_SHA'] and r['head_branch']=='main' and r['event']=='push' and r['conclusion']=='success']
-          assert valid, 'No successful exact-main native artifact'
-          print(max(valid))
-          PY
-          )
-          gh run download "$RUN" --name vlc-player-and-evidence --dir release-assets
-          (cd release-assets && sha256sum -c SHA256SUMS.txt)
-          [[ "$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')" == "$RELEASE_SHA" ]]
-          printf '\nValidated main commit: `%s`\n' "$RELEASE_SHA" >> docs/release-0.7.md
-          gh release create v0.7.0 --target "$RELEASE_SHA" --prerelease --title 'Shiny Player 0.7.0 — local research studio and Windows player' --notes-file docs/release-0.7.md release-assets/*.exe release-assets/*.zip release-assets/SHA256SUMS.txt release-assets/*report.json release-assets/player-*.png
+      - name: Verify exact runs, archive digest, package provenance and every published asset
+        if: steps.gate.outputs.current == 'true'
+        run: python scripts/release_player.py

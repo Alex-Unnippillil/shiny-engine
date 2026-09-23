@@ -19,6 +19,10 @@ public static class ShinyUiTest {
  [DllImport("user32.dll")] public static extern int GetMenuItemCount(IntPtr h);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);
  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);
+ [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h,int x,int y,int w,int height,bool repaint);
+ [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
+ [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h,ref Point p);
+ [StructLayout(LayoutKind.Sequential)] public struct Point { public int X,Y; }
  [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h,out Rect r);
  [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
 }
@@ -76,6 +80,25 @@ try {
  Wait-For { -not [ShinyUiTest]::IsWindow($panel) } 'panel closes'
  if (-not [ShinyUiTest]::IsWindow($main)) { throw 'Workbench closure destroyed primary playback' }
  $passed.Add('dialog cancellation disposes secondary session without closing primary player')
+ # Exercise the actual responsive Win32 layout, not just its portable geometry.
+ $before=[ShinyUiTest+Rect]::new()
+ if (-not [ShinyUiTest]::GetWindowRect($main,[ref]$before)) { throw 'Cannot read player rectangle' }
+ if (-not [ShinyUiTest]::MoveWindow($main,$before.Left,$before.Top,740,640,$true)) { throw 'Cannot resize player' }
+ Wait-For { -not [ShinyUiTest]::IsWindowVisible([ShinyUiTest]::GetDlgItem($main,204)) } 'compact layout sidebar hides'
+ $client=[ShinyUiTest+Rect]::new();$origin=[ShinyUiTest+Point]::new()
+ [void][ShinyUiTest]::GetClientRect($main,[ref]$client)
+ [void][ShinyUiTest]::ClientToScreen($main,[ref]$origin)
+ foreach ($id in @(101,137,110,111,201,202,203)) {
+  $control=[ShinyUiTest]::GetDlgItem($main,$id)
+  if (-not [ShinyUiTest]::IsWindowVisible($control)) { throw "Compact layout hid essential control $id" }
+  $rect=[ShinyUiTest+Rect]::new();[void][ShinyUiTest]::GetWindowRect($control,[ref]$rect)
+  # Combo box's closed window rectangle is the visible transport control.
+  if ($rect.Left -lt $origin.X -or $rect.Top -lt $origin.Y -or $rect.Right -gt ($origin.X+$client.Right) -or $rect.Bottom -gt ($origin.Y+$client.Bottom)) { throw "Compact control $id extends outside the client area" }
+ }
+ Snapshot $main 'player-compact.png'
+ [void][ShinyUiTest]::MoveWindow($main,$before.Left,$before.Top,($before.Right-$before.Left),($before.Bottom-$before.Top),$true)
+ Wait-For { [ShinyUiTest]::IsWindowVisible([ShinyUiTest]::GetDlgItem($main,204)) } 'expanded layout restores queue'
+ $passed.Add('compact native window keeps transport, seek, volume and research controls inside the viewport and restores the queue')
  Command $main 111
  Command $main 110
  Wait-For { (Text ([ShinyUiTest]::GetDlgItem($main,304))) -match '^Playing with libVLC' } 'reopen primary playback'
