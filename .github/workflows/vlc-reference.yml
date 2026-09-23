@@ -1,0 +1,51 @@
+name: VLC reference audit
+on:
+  push:
+    branches: [feat/vlc-desktop-player]
+    paths: [.github/workflows/vlc-reference.yml]
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: videolan/vlc
+          ref: 6de05adcbaf2e8b85fe86aad4169393098628119
+          path: vlc-source
+          sparse-checkout: |
+            include/vlc
+            lib
+            modules/video_output/win32
+            modules/video_filter
+          persist-credentials: false
+      - name: Verify official runtime archive
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force evidence | Out-Null
+          $base = 'https://download.videolan.org/pub/videolan/vlc/3.0.24/win64/'
+          $name = 'vlc-3.0.24-win64.zip'
+          Invoke-WebRequest ($base + $name + '.sha256') -OutFile evidence/runtime.sha256
+          $expected = ((Get-Content evidence/runtime.sha256 -Raw) -split '\s+')[0].ToLower()
+          if ($expected -notmatch '^[a-f0-9]{64}$') { throw 'Invalid official checksum' }
+          Invoke-WebRequest ($base + $name) -OutFile runtime.zip
+          $actual = (Get-FileHash runtime.zip -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) { throw 'Runtime archive checksum mismatch' }
+          Expand-Archive runtime.zip runtime
+          Get-ChildItem runtime -Recurse -Filter libvlc.dll | ForEach-Object {
+            [pscustomobject]@{ path=$_.FullName; product=$_.VersionInfo.ProductVersion; file=$_.VersionInfo.FileVersion; sha256=(Get-FileHash $_.FullName).Hash }
+          } | ConvertTo-Json | Set-Content evidence/runtime.json
+          Copy-Item vlc-source/include evidence/include -Recurse
+          Copy-Item vlc-source/COPYING* evidence/
+          Copy-Item vlc-source/modules/video_output/win32/direct3d11.c evidence/
+          Copy-Item vlc-source/lib/video.c evidence/
+          Write-Output "Verified VLC archive SHA256: $actual"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: vlc-reference-evidence
+          path: evidence/
+          if-no-files-found: error

@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: MIT
+#include "engine.hpp"
+#include <array>
+namespace shiny::player {
+std::string utf8(const std::wstring& value){
+  if(value.empty()) return {};
+  int count=WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,value.data(),static_cast<int>(value.size()),nullptr,0,nullptr,nullptr);
+  if(!count) throw std::runtime_error("Invalid Unicode text.");
+  std::string result(static_cast<size_t>(count),'\0');
+  WideCharToMultiByte(CP_UTF8,WC_ERR_INVALID_CHARS,value.data(),static_cast<int>(value.size()),result.data(),count,nullptr,nullptr); return result;
+}
+std::wstring wide(const std::string& value){
+  if(value.empty()) return {};
+  int count=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,value.data(),static_cast<int>(value.size()),nullptr,0);
+  if(!count) return L"Unrecognized text";
+  std::wstring result(static_cast<size_t>(count),L'\0');
+  MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,value.data(),static_cast<int>(value.size()),result.data(),count); return result;
+}
+std::filesystem::path installedVlc(){
+  std::array<wchar_t,32768> dir{};
+  auto n=GetEnvironmentVariableW(L"ProgramW6432",dir.data(),static_cast<DWORD>(dir.size()));
+  if(!n || n>=dir.size()) n=GetEnvironmentVariableW(L"ProgramFiles",dir.data(),static_cast<DWORD>(dir.size()));
+  if(!n || n>=dir.size()) return {};
+  return std::filesystem::path(dir.data())/L"VideoLAN"/L"VLC";
+}
+std::shared_ptr<VlcApi> VlcApi::load(const std::filesystem::path& folder){
+  auto result=std::shared_ptr<VlcApi>(new VlcApi());
+  if(folder.empty() || !folder.is_absolute()) throw std::runtime_error("Select an absolute VLC installation folder.");
+  result->root=std::filesystem::canonical(folder);
+  for(auto f:{L"libvlc.dll",L"libvlccore.dll",L"vlc.exe"})
+    if(!std::filesystem::is_regular_file(result->root/f)) throw std::runtime_error("Select the complete official 64-bit VLC installation, not an isolated DLL.");
+  if(!std::filesystem::is_directory(result->root/L"plugins")) throw std::runtime_error("VLC plugins directory is missing.");
+  SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32|LOAD_LIBRARY_SEARCH_USER_DIRS);
+  result->directory=AddDllDirectory(result->root.c_str());
+  if(!result->directory) throw std::runtime_error("Could not register the selected VLC directory.");
+  result->core=LoadLibraryExW((result->root/L"libvlccore.dll").c_str(),nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_SYSTEM32);
+  result->module=LoadLibraryExW((result->root/L"libvlc.dll").c_str(),nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR|LOAD_LIBRARY_SEARCH_SYSTEM32);
+  if(!result->module || !result->core) throw std::runtime_error("VLC could not load. Install official 64-bit VLC 3.0.24 or newer in the 3.0 series.");
+#define LOAD(field,symbol) result->field=reinterpret_cast<decltype(result->field)>(GetProcAddress(result->module,#symbol)); if(!result->field) throw std::runtime_error("Missing libVLC API: " #symbol);
+  VLC_SYMBOLS(LOAD)
+#undef LOAD
+  result->runtimeVersion=result->Version();
+  if(!supportedRuntime(result->runtimeVersion)) throw std::runtime_error("This build requires libVLC 3.0.24 or newer in the 3.0 series. VLC 4 has a different ABI.");
+  if(!SetEnvironmentVariableW(L"VLC_PLUGIN_PATH",(result->root/L"plugins").c_str())) throw std::runtime_error("Unable to select VLC plugins.");
+  return result;
+}
+VlcApi::~VlcApi(){if(module)FreeLibrary(module);if(core)FreeLibrary(core);if(directory)RemoveDllDirectory(directory);}
+Engine::Engine(std::shared_ptr<VlcApi> runtime,HWND surface,bool muted,bool test,bool driverSuper):api(std::move(runtime)),driverSuperResolutionRequested(driverSuper),silent(muted){
+  std::vector<const char*> args{"--ignore-config","--quiet","--no-video-title-show","--no-osd","--no-lua","--no-metadata-network-access"};
+  if(driverSuper){args.push_back("--vout=direct3d11");args.push_back("--d3d11-upscale-mode=super");}
+  if(test){args.push_back("--aout=dummy");args.push_back("--avcodec-hw=none");}
+  instance=api->New(static_cast<int>(args.size()),args.data());
+  if(!instance) throw std::runtime_error("libVLC initialization failed.");
+  player=api->NewPlayer(instance);
+  if(!player){api->Release(instance);instance=nullptr;throw std::runtime_error("libVLC could not create a media player.");}
+  if(surface) api->SetHwnd(player,surface);
+  api->SetKeys(player,0);api->SetMouse(player,0);api->SetVolume(player,80);api->SetMute(player,silent?1:0);
+}
+Engine::~Engine(){if(player){api->Stop(player);api->ReleasePlayer(player);}if(media)api->ReleaseMedia(media);if(instance)api->Release(instance);}
+void Engine::open(const Item& item){
+  plain(item.source);
+  if(item.remote){if(!network(item.source))throw std::runtime_error("Invalid stream URL.");}
+  else if(!std::filesystem::is_regular_file(item.source) || std::filesystem::file_size(item.source)==0)
+    throw std::runtime_error("Select an existing non-empty media file.");
+  auto encoded=utf8(item.source);
+  auto* candidate=item.remote?api->NewLocation(instance,encoded.c_str()):api->NewPath(instance,encoded.c_str());
+  if(!candidate)throw std::runtime_error("VLC could not open the selected source.");
+  if(silent)api->MediaOption(candidate,":no-audio");
+  api->Stop(player);api->SetMedia(player,candidate);
+  if(media)api->ReleaseMedia(media); media=candidate;
+  api->SetMute(player,silent?1:0);
+  if(api->Play(player)<0)throw std::runtime_error("VLC could not begin playback.");
+}
+void Engine::stop(){api->Stop(player);}
+void Engine::pause(bool value){api->Pause(player,value?1:0);}
+bool Engine::seek(int64_t ms){if(!seekable())return false;api->SetTime(player,std::clamp<int64_t>(ms,0,std::max<int64_t>(0,length())));return true;}
+void Engine::applyEffects(){effects.validate();if(!api->HasVideo(player))return;api->SetAdjustInt(player,libvlc_adjust_Enable,effects.enabled?1:0);
+ if(effects.enabled){api->SetAdjust(player,libvlc_adjust_Contrast,effects.contrast);api->SetAdjust(player,libvlc_adjust_Brightness,effects.brightness);
+ api->SetAdjust(player,libvlc_adjust_Saturation,effects.saturation);api->SetAdjust(player,libvlc_adjust_Gamma,effects.gamma);}}
+void Engine::equalizer(int index){
+ if(index<0){if(api->SetEq(player,nullptr)<0)throw std::runtime_error("Equalizer unavailable.");return;}
+ if(static_cast<unsigned>(index)>=api->EqCount())throw std::runtime_error("Unknown equalizer preset.");
+ auto* eq=api->EqPreset(static_cast<unsigned>(index));if(!eq)throw std::runtime_error("Equalizer unavailable.");
+ const auto rc=api->SetEq(player,eq);api->EqRelease(eq);if(rc<0)throw std::runtime_error("Equalizer could not be applied.");
+}
+void Engine::subtitle(const std::filesystem::path& file){
+ if(!std::filesystem::is_regular_file(file))throw std::runtime_error("Subtitle file is missing.");
+ auto* sub=api->NewPath(instance,utf8(file.wstring()).c_str());if(!sub)throw std::runtime_error("Invalid subtitle path.");
+ char* uri=api->GetMrl(sub);api->ReleaseMedia(sub);if(!uri)throw std::runtime_error("Cannot form subtitle URI.");
+ const auto rc=api->AddSlave(player,libvlc_media_slave_type_subtitle,uri,true);api->Free(uri);if(rc<0)throw std::runtime_error("VLC rejected the subtitle.");
+}
+std::vector<std::pair<int,std::wstring>> Engine::tracks(bool audio)const{
+ std::vector<std::pair<int,std::wstring>> out;auto* list=audio?api->GetAudioTracks(player):api->GetSubtitles(player);
+ for(auto* p=list;p;p=p->p_next)out.emplace_back(p->i_id,wide(p->psz_name?p->psz_name:"Unnamed track"));
+ if(list)api->FreeTracks(list);return out;
+}
+bool Engine::snapshot(const std::filesystem::path& file)const{return api->Snapshot(player,0,utf8(file.wstring()).c_str(),0,0)==0;}
+}
