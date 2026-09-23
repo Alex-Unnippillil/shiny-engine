@@ -234,10 +234,23 @@ try:
         expect(page.locator('#transport')).to_be_visible()
         page.locator('#play').click()
         expect(page.locator('#play')).to_have_text('Play')
-        page.wait_for_timeout(400)
+        # Pause permits the in-flight GPU frame and one final refresh to drain.
+        # Wait for observed quiescence instead of assuming a hosted software GPU
+        # always completes both within 400 ms. Deterministic scheduler unit tests
+        # separately enforce the exact callback bound, including a 2-second frame.
+        page.wait_for_function("""() => {
+          const video = document.querySelector('#source-video');
+          const count = Number(document.querySelector('#metric-count').textContent);
+          const now = performance.now();
+          if (!video.paused || count < 1) { window.pauseObservation = null; return false; }
+          if (!window.pauseObservation || window.pauseObservation.count !== count) {
+            window.pauseObservation = {count, since: now}; return false;
+          }
+          return now - window.pauseObservation.since >= 1000;
+        }""", timeout=15000, polling=50)
         count = page.locator('#metric-count').inner_text()
-        page.wait_for_timeout(250)
-        assert page.locator('#metric-count').inner_text() == count, 'Paused media must not keep consuming frames'
+        page.wait_for_timeout(750)
+        assert page.locator('#metric-count').inner_text() == count, 'Paused media must not keep consuming frames after pending work drains'
         page.locator('#seek').evaluate("e => { e.value = '0.7'; e.dispatchEvent(new Event('input', {bubbles:true})); }")
         page.locator('#rate').select_option('1.5')
         assert page.locator('#source-video').evaluate('(v)=>v.playbackRate') == 1.5
@@ -245,8 +258,7 @@ try:
         assert page.locator('#source-video').evaluate('(v)=>v.volume===0.35 && v.muted')
         expect(page.locator('#source-slot video')).to_be_hidden()
         page.locator('#play').click(); expect(page.locator('#play')).to_have_text('Pause')
-        page.wait_for_timeout(300)
-        assert int(page.locator('#metric-count').inner_text()) > int(count)
+        page.wait_for_function("count => Number(document.querySelector('#metric-count').textContent) > count", arg=int(count), timeout=10000)
         page.locator('#stop').click()
         expect(page.locator('#transport')).to_be_hidden()
         expect(page.locator('#empty-open')).to_be_visible()
