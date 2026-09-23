@@ -1,66 +1,65 @@
 # Shiny Engine
 
 Local-first media enhancement for Chrome/Edge, with an optional Windows companion.
-**Version 0.2.0 improves the browser workflow. It remains a spatial-enhancement alpha, not a DLSS 5 implementation.**
 
-This implements the useful spatial baseline from [the supplied research plan](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md).
-The plan is retained unchanged as a historical input. [Implementation status](docs/implementation-status.md) describes what is actually delivered; roadmap proposals are not finished features.
+**0.3.0 adds an experimental OpenDLSS-NR browser adapter and isolated Neural Lab. No trained model is approved or bundled: live neural inference is locked in the shipped build. The default Media Lab and Windows companion remain spatial enhancement.**
 
-## New in 0.2.0
+The [original research plan](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md) is preserved unchanged. [Implementation status](docs/implementation-status.md) distinguishes delivered code from proposed milestones.
 
-The Media Lab now puts source selection above the preview, with an on-image draggable comparison divider, explicit Original / Split view / Enhanced buttons, and fullscreen. Keyboard and touch controls remain available. Help (`?`) lists shortcuts and never dismisses your media when closed with Escape.
+## Neural Lab
 
-Local videos have a single processed preview with play/pause, seek, volume/mute, and playback speed. Paused and hidden video sessions stop continuous processing. Original video controls remain available when the renderer cannot be used.
+Open **Experimental Neural Lab** from the extension popup or Media Lab. The adapter includes a pinned MIT OpenDLSS-NR graph, local model inspection, SHA-256 validation, a dedicated compute worker, GPU frame conversion/composition, serial live-frame scheduling, tone/structure controls, matched-frame comparison, cancellation, PNG export and diagnostics.
 
-Opening corrupt images/videos or cancelling window sharing preserves the active source. Loading can be cancelled; late streams are stopped, and out-of-order file loads cannot replace the newest source. Presets, custom adjustments, scale and comparison settings persist locally. **Try demo** keeps adjustments; **Reset adjustments** restores Balanced without replacing the source.
+This is **not an activated or validated DLSS 5 product**. The reviewed-model register is empty. No trained-model inference, NVIDIA-output parity, physical-GPU speed, native neural capture or temporal video quality has been verified here. A file selection does not unlock the gate. Do not obtain leaked assets to use this build. See [neural integration and approval](docs/neural-lab.md).
 
-PNG export explicitly chooses enhanced, original, or the current comparison view, with source/output dimensions and safe filenames. Still-frame diagnostics can be cancelled. The extension popup explains supported players and disables page-specific actions on unavailable tabs. Companion setup shows the extension ID when opened from the installed extension.
+The experimental path processes independent SDR frames without optical flow or temporal history, at an explicit 320/512-pixel longest edge. These are research preview sizes, not 4K or real-time promises. The native/Vulkan integration is not implemented by this browser adapter. All reference code and shaders are bundled during build; model files are not downloaded or distributed.
 
-The Windows executable is unchanged in this browser-focused release. See [the UX change and validation notes](docs/ux-release.md) for scope and test coverage.
+## Spatial Media Lab
 
-## What is included
+The spatial workbench provides WebGPU with WebGL2 fallback, restrained sharpening/smoothing, 1–2× resampling, original/split/enhanced comparison and PNG export. It supports mouse/touch/keyboard comparison, fullscreen, help, and local video playback/seek/speed/audio controls. The original player remains available on renderer failure.
 
-- A responsive local image/video lab with WebGPU processing and a WebGL2 fallback, original/enhanced comparison, restrained sharpening, low-contrast smoothing, 1–2× spatial resampling, PNG export, and transparent frame-completion diagnostics.
-- A Manifest V3 extension with a toolbar popup, explicit activation for supported top-frame HTML5 video, a separate tab-capture viewer, and optional native messaging. It requests no persistent all-site host permission.
-- A C++20 Windows Graphics Capture companion with Direct3D 11 spatial processing into a **separate SDR preview window**, system source selection, pause/compare/stop controls, and the global **Ctrl+Shift+F10** emergency stop.
-- Strict protocol validation, local-only processing, model-provenance gates, reproducible builds, automated browser tests, and a Windows compile/protocol/HLSL test job.
+Invalid files and cancelled sharing preserve the current source. Late streams are stopped and stale loads cannot replace a newer selection. Adjustments persist locally; **Try demo** preserves them and **Reset adjustments** restores Balanced without replacing media. PNG export explicitly chooses enhanced, original or comparison pixels. Still-frame diagnostics are cancellable.
 
-The spatial shader is original code, not NVIDIA Image Scaling, Anime4K, a neural model, or reconstructed ground-truth detail. Neural rendering, animation models, photo-restoration models, frame generation, HDR, and a click-through desktop overlay are **not implemented/enabled**. No NVIDIA DLLs or model weights are bundled.
+These spatial shaders are original code, not DLSS or recovered ground-truth detail. Animation/photo models, frame generation, HDR and click-through desktop overlays are not enabled. No NVIDIA DLLs or model weights are included.
 
-## Run the browser lab
+## Run locally
 
-Install Node.js 22 or later, then:
+Requires Node.js 22+:
 
 ```sh
-git clone https://github.com/Alex-Unnippillil/shiny-engine.git
+git clone --recurse-submodules https://github.com/Alex-Unnippillil/shiny-engine.git
 cd shiny-engine
 npm ci --ignore-scripts
 npm run dev
 ```
 
-Open `http://127.0.0.1:4173`. The deterministic demo is generated locally. Use **Open image or video**, or drag a supported file into the lab. Nothing is uploaded. Use **B** to compare with the original and **Escape** or **Stop session** to release the source.
-
-PNG, JPEG, WebP and AVIF images and browser-decodable MP4/WebM/Ogg videos are accepted. Images are limited to 50 MiB / 33 megapixels and videos to 2 GiB. The processing output is capped at 4096 pixels on an axis and approximately 8.3 megapixels. Output dimensions are shown, including any cap. Video export/recording is not provided; Export PNG saves one still frame in the selected enhanced, original, or comparison view.
-
-**Share a window** asks for browser consent. Do not select the viewer itself. Browser monitor capture is disabled to avoid feedback. Audio remains with the original source application. Captured streams are released on stop or page closure.
-
-## Install the Chrome or Edge extension
+For an existing checkout, update the pinned reference before building:
 
 ```sh
-npm run build
+git submodule update --init -- third_party/opendlss-nr
 ```
 
-Open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, choose **Load unpacked**, and select the generated **`dist/extension`** directory. Do not select the repository root. Pin the extension and open **Media Lab** from its popup.
+Open `http://127.0.0.1:4173`. Neural Lab is at `/apps/nr/index.html`. In the spatial lab, **B** compares and **Escape** dismisses help/fullscreen, cancels a pending operation or stops the browser session. In Neural Lab, **Escape** stops capture and its worker.
 
-**Enhance supported video** is deliberately limited to readable, unprotected, top-frame HTML5 videos with native controls and a supported layout. It does not claim universal YouTube/player/iframe support. It leaves the original player in control of audio and reserves its native controls. **Restore original video** and the in-page stop button remove the enhancement.
+The spatial lab accepts PNG/JPEG/WebP/AVIF images and browser-decodable MP4/WebM/Ogg videos. Images are limited to 50 MiB / 33 megapixels; videos to 2 GiB. Spatial output is capped at 4096 pixels per axis and approximately 8.3 megapixels. Actual dimensions are shown. PNG exports one still frame, not a video recording.
 
-**Capture tab in separate viewer** requests the optional capture permission and opens a separate viewer. It does not inject the captured output into its source tab. Browser capture protection remains in effect. Real tab-capture consent and audio behavior require platform testing; they are not certified by the headless test suite.
+**Share a window** requests browser consent. Never choose this viewer as its source. Browser monitor capture is disabled to avoid feedback. Audio stays at the source application; browser streams are released on stop/page closure. Protected content may remain unavailable.
 
-Installable extension/site ZIPs are produced by `npm run package`. GitHub Actions attaches the build ZIPs, checksums, browser report and screenshots to its successful browser job. These are developer builds, not Chrome Web Store listings.
+## Install the extension
 
-## Build or install the optional Windows companion
+Run `npm run build`. Open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, select **Load unpacked**, and choose **`dist/extension`**, not the repository root. Pin its toolbar icon to open either lab.
 
-Requires Windows 11 x64, Visual Studio C++ build tools, a Windows SDK with C++/WinRT, and CMake 3.24 or newer. **The Windows job compiles the executable and its HLSL and tests protocol validation; it does not validate live capture or a physical GPU.** Use non-sensitive SDR test content first.
+Inline enhancement is limited to readable, unprotected, top-frame HTML5 video with native controls and supported geometry. Universal YouTube/custom-player/iframe support is not claimed. Audio stays with the original player. **Restore original video** or the in-page stop control removes inline processing.
+
+The separate tab viewer requests optional capture permission and never displays its output inside the captured tab. Real picker/audio/protection behavior still requires platform testing. No persistent all-site host permission is requested.
+
+`npm run package` creates extension/site ZIPs and checksums. Successful browser Actions jobs attach packages, reports and screenshots. These are developer builds, not browser-store listings.
+
+## Optional Windows companion
+
+The unchanged C++20 companion uses Windows Graphics Capture and Direct3D 11 spatial processing in a **separate SDR preview window**. It provides the system source picker, pause/compare/stop controls and **Ctrl+Shift+F10** emergency stop. No native DLSS/Vulkan backend or click-through overlay was added in 0.3.0.
+
+Requires Windows 11 x64, Visual Studio C++ build tools, Windows SDK with C++/WinRT, and CMake 3.24+. Windows CI compiles the executable/HLSL and tests the protocol; it does not validate live capture or a physical GPU. Use non-sensitive SDR content first.
 
 ```powershell
 cmake -S native/windows -B build/native -A x64
@@ -69,46 +68,49 @@ ctest --test-dir build/native -C Release --output-on-failure
 .\build\native\Release\shiny-native.exe
 ```
 
-Alternatively, download **shiny-engine-windows-unsigned-alpha** from a successful Native Windows Actions run. It contains the executable, install/uninstall scripts and checksum. The build is unsigned; verify its source/checksum and follow your organization's execution policy rather than disabling protections globally.
+Alternatively use the **shiny-engine-windows-unsigned-alpha** artifact from a successful Windows job. Follow local execution policy; do not disable protections globally.
 
-To connect your unpacked extension, copy its 32-character extension ID from the browser extensions page and run:
+Register the unpacked extension's 32-character ID:
 
 ```powershell
 .\native\windows\install.ps1 -ExtensionId 'YOUR_EXTENSION_ID' -Executable '.\build\native\Release\shiny-native.exe'
 ```
 
-For an extracted CI package, run its `install.ps1` beside its `shiny-native.exe` and omit `-Executable`. The installer writes only this user's `LocalAppData\ShinyEngine` folder and Chrome/Edge native-host registry entries. It does not create an elevated service, scheduled task, autostart entry or firewall rule.
+For an extracted CI package, run its `install.ps1` beside `shiny-native.exe` and omit `-Executable`. Installation writes only the user's `LocalAppData\ShinyEngine` folder and Chrome/Edge native-host entries. No elevated service, autostart task or firewall rule is created.
 
-Open the lab **from the extension**, click **Connect companion**, grant the optional native-messaging permission, then **Choose source**. The system picker stays authoritative. Stop from the lab or native window, or press **Ctrl+Shift+F10**. Pausing stops preview updates but retains capture; **Stop** releases capture. The native preview is not a click-through replacement for the original application. Close it explicitly when finished; closing the browser lab alone is not the native stop mechanism.
+Open spatial Media Lab **from the extension**, connect the companion, grant optional native-messaging permission and choose a source. Stop using the lab/native window or **Ctrl+Shift+F10**. Pause retains capture; Stop releases it. Closing the browser is not the stop mechanism for a separate native preview. Close the companion before running `uninstall.ps1`; remove the extension separately. Changing extension ID requires re-registration.
 
-Run `native/windows/uninstall.ps1` (or the extracted package's `uninstall.ps1`) after closing the companion to remove its per-user registration and files. Remove the extension separately. Changing the unpacked extension ID requires reinstalling the native registration.
-
-## Verification
+## Verify
 
 ```sh
 npm run check
-python -m pip install playwright==1.57.0
-python -m playwright install chromium
+python -m pip install playwright==1.63.0
+python -m playwright install --with-deps chromium
 npm run test:browser
 npm run package
 ```
 
-Browser automation executes the real spatial shader on Chromium's software graphics path and exercises file import, output resizing, PNG export, diagnostics, lifecycle and extension entry points. Software rendering is a functional test, not a physical-GPU performance result. The app's strict CSP is retained during tests. A managed browser policy may prevent local testing; do not disable that policy. Use the repository's isolated CI job instead.
+CI pins Playwright 1.63.0 / Chromium 153. Unit tests cover settings, protocol, model hashes/approvals, serial worker cancellation and bundled imports. Spatial browser tests cover actual pixels, decoding, export, playback, responsive UI and MV3 loading. Neural tests exercise the locked UI/worker gate and GPU input/output stages with **synthetic residuals**, not a trained model. Check results for the exact commit; test definitions alone are not evidence of success.
 
-See [support and known limits](docs/support-matrix.md), [benchmark method](docs/benchmark-method.md), [security/privacy](docs/threat-model.md), and [model provenance](docs/model-provenance.md). Check the exact commit's **browser-build** and **windows-build** results before using artifacts.
+Software graphics tests do not certify physical-GPU performance. Strict application CSP is retained. Respect managed browser policies; do not disable them to run local tests. Both **browser-build** and **windows-build** gate feature merges.
 
-## Architecture
+See [support matrix](docs/support-matrix.md), [benchmark method](docs/benchmark-method.md), [security](docs/threat-model.md), [model provenance](docs/model-provenance.md), and [Neural Lab boundaries](docs/neural-lab.md).
+
+## Source layout
 
 ```text
-apps/viewer       Local media lab, comparison, export and diagnostics
-apps/extension    MV3 permissions, supported inline mode, tab viewer and host bridge
-packages/gpu-web  WebGPU/WebGL2 spatial filters and bounded frame scheduling
-packages/contracts Versioned validated settings/native commands
-native/windows    C++20 system picker, Direct3D capture/processing/preview
-models/registry.json Metadata only; neural backends explicitly disabled
-docs              Preserved research, implementation status, safety and validation
+apps/viewer             Spatial Media Lab
+apps/nr                 Isolated approval-gated Neural Lab
+apps/extension          MV3 permissions and session routing
+packages/contracts      Validated settings/native commands
+packages/gpu-web        Spatial rendering and bounded scheduling
+packages/nr             Model policy, worker and graph adapter
+third_party/opendlss-nr  Pinned MIT source; no weights
+native/windows          Windows picker and D3D11 spatial preview
+models                  Metadata, approvals and source hashes only
+docs                    Preserved research, status and release gates
 ```
 
-Browser sources are imported into GPU textures without a JavaScript full-frame pixel loop. Native frames stay within the native process and are copied GPU-to-GPU before processing. Native messaging carries only validated commands and compact status data; it is not a frame transport. Temporal neural processing and D3D/Vulkan interoperability remain separate research work.
+Browser processing uses GPU textures rather than a full-frame JavaScript pixel loop. Native Messaging transports controls/status only. Temporal processing and D3D/Vulkan interop remain separate work.
 
-MIT for the original application. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Shiny Engine is independent and is not affiliated with or endorsed by NVIDIA.
+Original application: MIT. Reference notices are preserved in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Shiny Engine is independent and not NVIDIA-affiliated or endorsed.

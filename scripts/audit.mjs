@@ -21,5 +21,6 @@ async function walk(path) {
     }
   }
 }
+assert.equal(JSON.parse(await readFile('models/nr-approvals.json', 'utf8')).schema, 1);
 await walk('dist/extension');
 console.log('PASS: MV3 permissions, bundled assets, no network inference, no unapproved model binaries.');

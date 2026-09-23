@@ -13,13 +13,13 @@
 <body>
   <a class="skip" href="#workspace">Skip to workspace</a>
   <header class="topbar">
-    <a class="brand" href="/index.html" aria-label="Shiny Engine home"><span class="brand-mark" aria-hidden="true">S</span><span>shiny<span class="brand-light">engine</span></span><span class="version">ALPHA 0.2</span></a>
+    <a class="brand" href="/index.html" aria-label="Shiny Engine home"><span class="brand-mark" aria-hidden="true">S</span><span>shiny<span class="brand-light">engine</span></span><span class="version">ALPHA 0.3</span></a>
     <nav aria-label="Main"><a href="#workspace" class="active">Media lab</a><a href="#native-panel">Companion</a><a href="#diagnostics">Diagnostics</a></nav>
     <button id="help" class="quiet" aria-haspopup="dialog" title="Help and keyboard shortcuts (?)">Help <kbd>?</kbd></button>
   </header>
   <main>
     <section class="intro" aria-labelledby="page-title">
-      <div><p class="eyebrow">YOUR MEDIA. YOUR DEVICE.</p><h1 id="page-title">A clearer view. <span>Still your original.</span></h1><p class="lede">Open a file, adjust the detail, and compare. No uploads. No generative changes.</p></div>
+      <div><p class="eyebrow">YOUR MEDIA. YOUR DEVICE.</p><h1 id="page-title">A clearer view. <span>Still your original.</span></h1><p class="lede">Open a file, adjust the detail, and compare. No uploads. No generative changes in this spatial workspace.</p></div>
       <div class="intro-meta"><span class="status-pill" id="backend-pill">Checking graphics support</span><span class="subtle">Spatial processing · not DLSS</span></div>
     </section>
     <section class="workspace" id="workspace" aria-label="Media enhancement workspace" tabindex="-1">
@@ -63,7 +63,7 @@
         <div class="slider-row"><label for="denoise">Smoothing</label><output id="denoise-value" for="denoise">8%</output><input type="range" id="denoise" min="0" max="50" value="8"><small>Softens low-contrast noise, not missing detail.</small></div>
         <div class="select-row"><label for="scale">Output scale</label><select id="scale"><option value="1">Native · 1×</option><option value="1.5">Larger · 1.5×</option><option value="2">Larger · 2×</option></select><small>Spatial resampling. Output is capped at 8.3 megapixels and 4096 pixels per axis.</small></div>
         <button id="reset" class="button reset">Reset adjustments</button><p id="preferences-note" class="subtle">Settings remembered locally. Files are never stored.</p>
-        <details class="locked"><summary>About this processing</summary><p>These are spatial filters, not DLSS, AI super-resolution, or recovered ground-truth detail. Neural rendering is not available. No proprietary weights or NVIDIA DLLs are bundled.</p></details>
+        <a class="button reset" href="/apps/nr/index.html">Experimental neural lab ↗</a><details class="locked"><summary>About this processing</summary><p>These are spatial filters, not DLSS, AI super-resolution, or recovered ground-truth detail. Experimental neural rendering has its own approval-gated lab. No proprietary weights or NVIDIA DLLs are bundled.</p></details>
       </aside>
     </section>
     <section class="bottom-grid">
