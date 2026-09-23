@@ -143,14 +143,15 @@ try:
         page.locator('[data-view=enhanced]').click()
         expect(page.locator('#split')).to_have_value('0')
         page.locator('[data-view=split]').click()
-        page.locator('#comparison-line').focus(); page.keyboard.press('Home')
-        expect(page.locator('#split')).to_have_value('0')
+        expect(page.locator('#split')).to_have_value('50')
+        divider = page.locator('#comparison-line')
+        divider.focus(); page.keyboard.press('ArrowRight')
+        expect(page.locator('#split')).to_have_value('51')
         page.keyboard.press('Shift+ArrowRight')
-        expect(page.locator('#split')).to_have_value('10')
-        page.locator('[data-view=split]').click()
+        expect(page.locator('#split')).to_have_value('61')
         box = page.locator('#stage').bounding_box()
-        line = page.locator('#comparison-line').bounding_box()
-        page.mouse.move(line['x']+line['width']/2, line['y']+line['height']/2)
+        handle = divider.bounding_box()
+        page.mouse.move(handle['x'] + handle['width']/2, handle['y'] + handle['height']/2)
         page.mouse.down(); page.mouse.move(box['x']+box['width']*.8, box['y']+box['height']/2, steps=5); page.mouse.up()
         assert 78 <= int(page.locator('#split').input_value()) <= 82
         results.append('persistent presets, custom state, three views and real pointer/keyboard divider')
@@ -306,6 +307,12 @@ try:
             popup.goto(f'chrome-extension://{extension_id}/apps/extension/popup.html')
             expect(popup.locator('#inline')).to_be_disabled()
             expect(popup.locator('#capture')).to_be_disabled()
+            # Extension documents may be attached before their first composited
+            # frame exists on a busy headless runner. Require actual visibility
+            # and two animation frames before requesting the evidence image.
+            popup.bring_to_front()
+            expect(popup.locator('#lab')).to_be_visible()
+            popup.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
             popup.screenshot(path=str(OUT / 'extension-popup.png'))
             with context.expect_page() as opened:
                 popup.locator('#lab').click()
