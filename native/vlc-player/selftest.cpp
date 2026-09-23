@@ -14,7 +14,8 @@ namespace {
 struct Frames {
   std::mutex mutex;
   unsigned char* pixels = static_cast<unsigned char*>(_aligned_malloc(160 * 96 * 4, 64));
-  std::atomic<unsigned> count{0};
+  std::atomic<unsigned> count{0}, changes{0};
+  uint64_t lastHash=0;
   double mean = 0;
   Frames() { if (!pixels) throw std::bad_alloc(); }
   ~Frames() { _aligned_free(pixels); }
@@ -29,6 +30,9 @@ struct Frames {
       for (unsigned x = 30; x < 110; ++x)
         for (unsigned c = 0; c < 3; ++c) total += self->pixels[(y * 160 + x) * 4 + c];
     self->mean = total / (40 * 80 * 3);
+    uint64_t hash=1469598103934665603ull;
+    for(unsigned i=0;i<160*96*4;++i)if(i%4!=3){hash^=self->pixels[i];hash*=1099511628211ull;}
+    if(hash!=self->lastHash){self->lastHash=hash;++self->changes;}
     self->mutex.unlock();
   }
   static void display(void* opaque, void*) { ++static_cast<Frames*>(opaque)->count; }
@@ -50,11 +54,12 @@ std::string json(const std::string& s) {
 }
 }
 int playbackTest(const std::filesystem::path& root,const std::filesystem::path& fixture,const std::filesystem::path& report) {
-  std::vector<std::string> passed;std::string error,version;double baseline=0,enhanced=0;unsigned count=0;
+  std::vector<std::string> passed;std::string error,runtimeVersion;double baseline=0,enhanced=0;unsigned count=0;
   auto check=[&](bool value,const char* name){if(!value)throw std::runtime_error(name);passed.emplace_back(name);};
   try {
-    auto api=VlcApi::load(root);version=api->runtimeVersion;
-    check(supportedRuntime(version),"official compatible libVLC loaded and all required API symbols resolved");
+    check(FindResourceW(GetModuleHandleW(nullptr),MAKEINTRESOURCEW(1),RT_MANIFEST)!=nullptr,"explicit Windows application manifest embedded");
+    auto api=VlcApi::load(root);runtimeVersion=api->runtimeVersion;
+    check(supportedRuntime(runtimeVersion),"official compatible libVLC loaded and all required API symbols resolved");
     Frames frames;
     { Engine engine(api,nullptr,false,true);frames.attach(engine);
       Item item{std::filesystem::absolute(fixture).wstring(),L"Synthetic original",false};
@@ -63,9 +68,13 @@ int playbackTest(const std::filesystem::path& root,const std::filesystem::path& 
       check(!engine.tracks(true).empty(),"actual audio tracks enumerated");
       const auto initial=frames.count.load();check(until([&]{return frames.count>initial+5;}),"multiple decoded frames presented through libVLC callbacks");
       engine.pause(true);check(until([&]{return api->State(engine.player)==libvlc_Paused;}),"pause acknowledged by engine");
-      std::this_thread::sleep_for(std::chrono::milliseconds(350));const auto paused=frames.count.load();
-      std::this_thread::sleep_for(std::chrono::milliseconds(350));check(frames.count<=paused+1,"paused playback stops continuous frame delivery");
-      engine.pause(false);check(until([&]{return frames.count>paused+3;}),"resume produces new frames");
+      // VLC may redisplay a retained picture while paused. Test content/time, not redraws.
+      auto lastChange=frames.changes.load();auto stableSince=std::chrono::steady_clock::now();
+      check(until([&]{auto current=frames.changes.load();if(current!=lastChange){lastChange=current;stableSince=std::chrono::steady_clock::now();}return std::chrono::steady_clock::now()-stableSince>std::chrono::milliseconds(500);},4000),"paused picture reaches a stable retained frame");
+      const auto pausedTime=engine.time();const auto pausedChanges=frames.changes.load();count=frames.count.load();
+      std::this_thread::sleep_for(std::chrono::milliseconds(350));
+      check(std::llabs(engine.time()-pausedTime)<=100&&frames.changes==pausedChanges,"paused media position and picture do not advance");
+      engine.pause(false);check(until([&]{return frames.changes>pausedChanges+3;}),"resume produces new content frames");
       check(engine.seek(5000)&&until([&]{return engine.time()>=4800&&engine.time()<7000;}),"seek changes the actual media position");
       check(api->SetRate(engine.player,1.25f)==0&&std::abs(api->GetRate(engine.player)-1.25f)<.01f,"playback rate accepted and read back");api->SetRate(engine.player,1.f);
       baseline=frames.average();engine.effects.enabled=true;engine.effects.brightness=1.6f;engine.applyEffects();
@@ -94,9 +103,9 @@ int playbackTest(const std::filesystem::path& root,const std::filesystem::path& 
     }
     passed.emplace_back("players released before callback storage and runtime unload");
   }catch(const std::exception& e){error=e.what();}
-  std::ofstream out(report);out<<"{\n  \"schema\":1,\n  \"runtime\":"<<json(version)<<",\n  \"passed\":[";
+  std::ofstream out(report);out<<"{\n  \"schema\":1,\n  \"runtime\":"<<json(runtimeVersion)<<",\n  \"passed\":[";
   for(size_t i=0;i<passed.size();++i)out<<(i?",":"")<<json(passed[i]);
-  out<<"],\n  \"error\":"<<json(error)<<",\n  \"decodedCallbackFrames\":"<<count<<",\n  \"originalMean\":"<<baseline<<",\n  \"adjustedMean\":"<<enhanced<<",\n  \"dlss5Inference\":false,\n  \"physicalGpuValidated\":false,\n  \"scope\":\"Synthetic local AVI, software decode, dummy audio output. No DLSS, VSR, HDR, real audio-device or hardware-performance certification.\"\n}\n";
+  out<<"],\n  \"error\":"<<json(error)<<",\n  \"displayCallbacks\":"<<count<<",\n  \"originalMean\":"<<baseline<<",\n  \"adjustedMean\":"<<enhanced<<",\n  \"dlss5Inference\":false,\n  \"physicalGpuValidated\":false,\n  \"scope\":\"Synthetic local AVI, software decode, dummy audio output. No DLSS, VSR, HDR, real audio-device or hardware-performance certification.\"\n}\n";
   return error.empty()&&out.good()?0:1;
 }
 }
