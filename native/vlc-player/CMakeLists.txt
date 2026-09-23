@@ -15,6 +15,9 @@ if(WIN32)
   target_compile_features(ShinyVlcPlayer PRIVATE cxx_std_20)
   target_compile_definitions(ShinyVlcPlayer PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
   target_compile_options(ShinyVlcPlayer PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4;/EHsc;/permissive-;/utf-8>)
+  # player.rc already embeds the complete asInvoker / common-controls / DPI manifest.
+  # Do not generate a second resource with the same ID at link time.
+  target_link_options(ShinyVlcPlayer PRIVATE /MANIFEST:NO)
   target_link_libraries(ShinyVlcPlayer PRIVATE comctl32 comdlg32 shell32 ole32 dwmapi gdiplus shlwapi uuid)
   set_property(TARGET ShinyVlcPlayer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   if(VLC_TEST_RUNTIME AND VLC_TEST_FIXTURE)
