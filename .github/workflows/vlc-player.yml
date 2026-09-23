@@ -1,0 +1,76 @@
+name: VLC desktop player
+on:
+  push:
+    branches: [main, feat/vlc-desktop-player]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  vlc-player:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: videolan/vlc
+          ref: 6de05adcbaf2e8b85fe86aad4169393098628119
+          path: .deps/vlc-source
+          sparse-checkout: include/vlc
+          persist-credentials: false
+      - name: Verify official VLC runtime for tests only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force artifacts/vlc | Out-Null
+          $url = 'https://download.videolan.org/pub/videolan/vlc/3.0.24/win64/vlc-3.0.24-win64.zip'
+          Invoke-WebRequest $url -OutFile .deps/vlc.zip
+          $expected = 'fcf30850371ad10c9373cc4f0f4501e7dee49e3e9ae9f20c72fb2661a1ca6323'
+          if ((Get-FileHash .deps/vlc.zip -Algorithm SHA256).Hash.ToLower() -ne $expected) { throw 'Official VLC archive hash mismatch' }
+          Expand-Archive .deps/vlc.zip .deps/runtime
+          Write-Output "Verified official VLC 3.0.24 archive $expected"
+      - name: Build and test native player
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python tests/vlc-player/make_fixture.py .deps/fixtures
+          if ($LASTEXITCODE) { throw 'Fixture generation failed' }
+          $runtime = Join-Path $PWD '.deps/runtime/vlc-3.0.24'
+          $headers = Join-Path $PWD '.deps/vlc-source/include'
+          $fixture = Join-Path $PWD '.deps/fixtures/moving-original.avi'
+          cmake -S native/vlc-player -B build/vlc -A x64 "-DVLC_INCLUDE_DIR=$headers" "-DVLC_TEST_RUNTIME=$runtime" "-DVLC_TEST_FIXTURE=$fixture" 2>&1 | Tee-Object artifacts/vlc/configure.log
+          if ($LASTEXITCODE) { throw 'Configure failed' }
+          cmake --build build/vlc --config Release --parallel 2>&1 | Tee-Object artifacts/vlc/build.log
+          if ($LASTEXITCODE) { throw 'Build failed' }
+          ctest --test-dir build/vlc -C Release --output-on-failure 2>&1 | Tee-Object artifacts/vlc/tests.log
+          $tests = $LASTEXITCODE
+          Copy-Item build/vlc/playback-report.json artifacts/vlc/ -ErrorAction SilentlyContinue
+          Copy-Item build/vlc/vlc-decoded-frame.png artifacts/vlc/ -ErrorAction SilentlyContinue
+          if ($tests) { throw 'Real VLC tests failed' }
+          $image = Join-Path $PWD 'artifacts/vlc/player-desktop.png'
+          $args = @('--vlc-dir', ('"'+$runtime+'"'), '--ui-smoke', ('"'+$fixture+'"'), ('"'+$image+'"'))
+          $proc = Start-Process build/vlc/Release/ShinyVlcPlayer.exe -ArgumentList $args -PassThru
+          if (-not $proc.WaitForExit(30000)) { $proc.Kill(); throw 'Native UI smoke test timed out' }
+          if ($proc.ExitCode -ne 0) { throw 'Native UI smoke test failed' }
+          $ui = Get-Content artifacts/vlc/ui-playback.json -Raw | ConvertFrom-Json
+          if ($ui.decodedVideoFrames -lt 1 -or $ui.width -lt 1) { throw 'Native UI did not decode video' }
+      - name: Package independent player without VLC binaries
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force artifacts/package | Out-Null
+          Copy-Item build/vlc/Release/ShinyVlcPlayer.exe artifacts/package/
+          Copy-Item native/vlc-player/README.md artifacts/package/
+          Copy-Item native/vlc-player/THIRD_PARTY_NOTICES.md artifacts/package/
+          Copy-Item LICENSE artifacts/package/
+          Copy-Item .deps/vlc-source/COPYING.LIB artifacts/package/LGPL-2.1.txt
+          Get-FileHash artifacts/package/ShinyVlcPlayer.exe -Algorithm SHA256 | ForEach-Object { $_.Hash.ToLower() + '  ShinyVlcPlayer.exe' } | Set-Content artifacts/package/SHA256SUMS.txt
+          Compress-Archive artifacts/package/* artifacts/vlc/shiny-vlc-player-0.5.0-unsigned.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: vlc-player-and-evidence
+          path: artifacts/vlc/
+          if-no-files-found: error
