@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 public static class ShinyUiTest {
  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h,int msg,IntPtr w,IntPtr l);
+ [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h,int msg,IntPtr w,IntPtr l);
  [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr h,int id);
  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
  [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr h);
@@ -52,7 +53,6 @@ try {
  Start-Sleep -Milliseconds 1500
  Snapshot $panel 'player-neural-workbench.png'
  $passed.Add('native neural panel opens with original preview and disabled preparation until valid intake')
- # A local-research selection is not a model approval and does not fabricate output.
  [void][ShinyUiTest]::SendMessage([ShinyUiTest]::GetDlgItem($panel,109),0xF1,[IntPtr]1,[IntPtr]::Zero)
  Command $panel 109
  Command $panel 110
@@ -61,7 +61,17 @@ try {
  if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,113))) { throw 'Output export available before any inference result' }
  Snapshot $panel 'player-research-mode.png'
  $passed.Add('research selection alone does not bypass intake or fabricate an exportable result')
- # IsDialogMessage routes Escape from focused controls through IDCANCEL.
+ # Open the actual modal folder picker asynchronously. The primary owner must
+ # remain disabled until cancellation, so its auto-next timer cannot destroy
+ # the research panel on a nested message loop.
+ [void][ShinyUiTest]::PostMessage($panel,0x111,[IntPtr]102,[IntPtr]::Zero)
+ $picker=[IntPtr]::Zero
+ Wait-For { $script:picker=[ShinyUiTest]::FindWindow('#32770',[IntPtr]::Zero); $picker -ne [IntPtr]::Zero -and [ShinyUiTest]::GetWindow($picker,4) -eq $panel } 'model folder picker'
+ if ([ShinyUiTest]::IsWindowEnabled($main)) { throw 'Primary owner remained enabled during the research picker' }
+ [void][ShinyUiTest]::PostMessage($picker,0x111,[IntPtr]2,[IntPtr]::Zero)
+ Wait-For { -not [ShinyUiTest]::IsWindow($picker) -and [ShinyUiTest]::IsWindowEnabled($main) -and [ShinyUiTest]::IsWindowEnabled($panel) } 'picker cancellation and owner recovery'
+ if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,103))) { throw 'Cancelled picker granted model authorization' }
+ $passed.Add('real folder-picker cancellation restores owner controls without authorizing a model')
  Command $panel 2
  Wait-For { -not [ShinyUiTest]::IsWindow($panel) } 'panel closes'
  if (-not [ShinyUiTest]::IsWindow($main)) { throw 'Workbench closure destroyed primary playback' }
@@ -70,7 +80,7 @@ try {
  Command $main 110
  Wait-For { (Text ([ShinyUiTest]::GetDlgItem($main,304))) -match '^Playing with libVLC' } 'reopen primary playback'
  $passed.Add('stop and replay remain usable after workbench teardown')
- @{passed=$passed;trainedModelInference=$false;physicalGpuValidated=$false;scope='Actual Windows user-interface actions with original synthetic media. No trained model or sound-device certification.'} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-workbench-report.json')
+ @{passed=$passed;trainedModelInference=$false;physicalGpuValidated=$false;scope='Actual Windows UI and folder dialog with original synthetic media. No trained model, neural export or sound-device certification.'} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-workbench-report.json')
 } catch {
  $failure = $_
  if ($main -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($main)) {
@@ -79,6 +89,6 @@ try {
  }
  throw $failure
 } finally {
- if ($main -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($main)) { [void][ShinyUiTest]::SendMessage($main,0x10,[IntPtr]::Zero,[IntPtr]::Zero) }
+ if ($main -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($main)) { [void][ShinyUiTest]::PostMessage($main,0x10,[IntPtr]::Zero,[IntPtr]::Zero) }
  if (-not $proc.WaitForExit(10000)) { $proc.Kill();throw 'Player failed to close after UI checks' }
 }

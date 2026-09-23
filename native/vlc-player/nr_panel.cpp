@@ -22,9 +22,18 @@ struct NeuralPanel::Impl {
   if(std::wstring_view(cls)==L"STATIC")SetWindowLongPtrW(h,GWL_STYLE,GetWindowLongPtrW(h,GWL_STYLE)&~WS_TABSTOP);
   return h;
  }
+ // A common file dialog pumps messages. Prevent automatic next-item handling
+ // from destroying this owned panel while a synchronous picker is on its stack.
+ std::vector<std::filesystem::path> choose(bool folder=false,bool save=false,const wchar_t* ext=L"png"){
+  struct OwnerGuard {
+   HWND window;bool enabled;
+   explicit OwnerGuard(HWND owner):window(owner),enabled(IsWindowEnabled(owner)!=0){if(IsWindow(window)){KillTimer(window,1);EnableWindow(window,FALSE);}}
+   ~OwnerGuard(){if(IsWindow(window)){SetTimer(window,1,150,nullptr);if(enabled)EnableWindow(window,TRUE);}}
+  } guard(GetWindow(hwnd,GW_OWNER));
+  return shiny::ui::pick(hwnd,false,folder,save,ext);
+ }
  void setDpi(UINT value){
-  dpi=value?value:96;
-  auto old=font,oldTitle=titleFont;
+  dpi=value?value:96;auto old=font,oldTitle=titleFont;
   font=CreateFontW(-units(15),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
   titleFont=CreateFontW(-units(23),0,0,0,FW_SEMIBOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
   if(hwnd)EnumChildWindows(hwnd,[](HWND child,LPARAM handle)->BOOL{SendMessageW(child,WM_SETFONT,static_cast<WPARAM>(handle),TRUE);return TRUE;},reinterpret_cast<LPARAM>(font));
@@ -74,8 +83,7 @@ struct NeuralPanel::Impl {
   auto value=[&](int id){return static_cast<int>(SendMessageW(GetDlgItem(hwnd,id),TBM_GETPOS,0,0));};
   const wchar_t* labels[]={L"Tone",L"Structure",L"Neural mix"};
   for(int i=0;i<3;++i)SetWindowTextW(GetDlgItem(hwnd,200+i),(std::wstring(labels[i])+L"   "+std::to_wstring(value(Tone+i))+L"%").c_str());
-  ++revision;resubmit=true;if(latest)latest->enhanced.clear();
-  InvalidateRect(hwnd,nullptr,FALSE);
+  ++revision;resubmit=true;if(latest)latest->enhanced.clear();InvalidateRect(hwnd,nullptr,FALSE);
  }
  void applyControls(NrImage& image){
   image.controlRevision=revision;
@@ -108,8 +116,7 @@ struct NeuralPanel::Impl {
   RECT title{units(20),units(16),r.right-units(20),units(49)};DrawTextW(dc,L"DLSS-NR Research Studio",-1,&title,DT_SINGLELINE);
   SelectObject(dc,font);SetTextColor(dc,shiny::ui::accent);RECT pill{r.right-units(332),units(22),r.right-units(20),units(50)};DrawTextW(dc,L"LOCAL MODEL / UNVERIFIED OUTPUT",-1,&pill,DT_RIGHT|DT_SINGLELINE);
   int view=static_cast<int>(SendMessageW(GetDlgItem(hwnd,View),CB_GETCURSEL,0,0));
-  RECT all{units(20),units(236),r.right-units(20),r.bottom-units(224)};
-  FillRect(dc,&all,shiny::ui::panelBrush);
+  RECT all{units(20),units(236),r.right-units(20),r.bottom-units(224)};FillRect(dc,&all,shiny::ui::panelBrush);
   RECT caption{units(20),units(204),r.right-units(20),units(232)};SetTextColor(dc,shiny::ui::muted);
   DrawTextW(dc,L"MATCHED INPUT  /  EXPERIMENTAL OUTPUT     ·     independent SDR frames, not main audio playback",-1,&caption,DT_SINGLELINE|DT_END_ELLIPSIS);
   if(latest){
@@ -154,8 +161,10 @@ struct NeuralPanel::Impl {
  }
  void exportFrame(){
   if(!latest||latest->enhanced.empty())throw std::runtime_error("Process a frame before exporting.");
-  auto files=shiny::ui::pick(hwnd,false,false,true);if(files.empty())return;
-  auto frame=*latest;std::vector<uint8_t> bgra(frame.enhanced.size());
+  // Hold a complete snapshot before the modal picker pumps timer messages.
+  auto frame=*latest;
+  auto files=choose(false,true);if(files.empty())return;
+  std::vector<uint8_t> bgra(frame.enhanced.size());
   for(size_t i=0;i<bgra.size();i+=4){bgra[i]=frame.enhanced[i+2];bgra[i+1]=frame.enhanced[i+1];bgra[i+2]=frame.enhanced[i];bgra[i+3]=255;}
   Gdiplus::Bitmap image(frame.header.width,frame.header.height,frame.header.width*4,PixelFormat32bppARGB,bgra.data());
   UINT n=0,bytes=0;Gdiplus::GetImageEncodersSize(&n,&bytes);std::vector<uint8_t> memory(bytes);auto* encoders=reinterpret_cast<Gdiplus::ImageCodecInfo*>(memory.data());
@@ -164,7 +173,7 @@ struct NeuralPanel::Impl {
   if(!saved)throw std::runtime_error("Could not save the experimental frame.");SetWindowTextW(info,L"Experimental output PNG saved. This is not an original frame or a validated representation. Retain your source.");
  }
  void exportReport(){
-  auto files=shiny::ui::pick(hwnd,false,false,true,L"json");if(files.empty())return;
+  auto files=choose(false,true,L"json");if(files.empty())return;
   std::ofstream out(files[0]);std::string digest;{std::lock_guard lock(mutex);digest=modelDigest;}
   out<<"{\n  \"schema\": 1,\n  \"application\": \"0.7.0\",\n  \"mode\": \""<<(research?"local-research":"reviewed")<<"\",\n  \"modelManifestSha256\": \""<<digest<<"\",\n  \"vendorParityVerified\": false,\n  \"returnedFrames\": "<<completed<<",\n  \"hasCurrentNeuralOutput\": "<<(latest&&!latest->enhanced.empty()?"true":"false");
   if(latest){out<<",\n  \"width\": "<<latest->header.width<<",\n  \"height\": "<<latest->header.height<<",\n  \"sourcePositionMsApproximate\": "<<latest->sourceTimeMs<<",\n  \"tone\": "<<latest->header.tone<<",\n  \"structure\": "<<latest->header.structure<<",\n  \"mix\": "<<latest->header.blend<<",\n  \"workerRoundTripMs\": "<<latest->milliseconds;}
@@ -173,7 +182,7 @@ struct NeuralPanel::Impl {
  }
  void action(int id){
   if(id==Research){forgetAuthorization();research=selected(Research);SetWindowTextW(info,research?L"Local research selected. Choose a model folder you are authorized to use. Intake validates the files, not model ownership or output quality.":L"Reviewed-only mode selected. The curated model registry is unchanged.");}
-  else if(id==Model){auto files=shiny::ui::pick(hwnd,false,true);if(!files.empty()){forgetAuthorization();model=files[0];runCheck(true);}}
+  else if(id==Model){auto files=choose(true);if(!files.empty()){forgetAuthorization();model=files[0];runCheck(true);}}
   else if(id==Probe)runCheck(false);
   else if(id==Start){
    std::string digest;bool permitted=false;{std::lock_guard lock(mutex);permitted=validated&&!busy&&(reviewed||(research&&selected(Consent)&&nrpolicy::hashText(modelDigest)));digest=modelDigest;}
@@ -185,8 +194,7 @@ struct NeuralPanel::Impl {
   else if(id==Save)exportFrame();else if(id==Report)exportReport();else if(id==View)InvalidateRect(hwnd,nullptr,FALSE);
  }
  void drawButton(DRAWITEMSTRUCT* d){
-  bool active=(d->CtlID==Start),disabled=(d->itemState&ODS_DISABLED)!=0;
-  auto color=active&&!disabled?shiny::ui::accent:shiny::ui::panel;
+  bool active=(d->CtlID==Start),disabled=(d->itemState&ODS_DISABLED)!=0;auto color=active&&!disabled?shiny::ui::accent:shiny::ui::panel;
   FillRect(d->hDC,&d->rcItem,shiny::ui::backgroundBrush);auto brush=CreateSolidBrush(color);auto pen=CreatePen(PS_SOLID,1,(d->itemState&ODS_FOCUS)?shiny::ui::accent:RGB(56,70,86));auto ob=SelectObject(d->hDC,brush),op=SelectObject(d->hDC,pen);
   RoundRect(d->hDC,0,0,d->rcItem.right,d->rcItem.bottom,units(10),units(10));SelectObject(d->hDC,ob);SelectObject(d->hDC,op);DeleteObject(brush);DeleteObject(pen);
   wchar_t text[128]{};GetWindowTextW(d->hwndItem,text,128);SetBkMode(d->hDC,TRANSPARENT);SetTextColor(d->hDC,disabled?shiny::ui::muted:active?shiny::ui::bg:shiny::ui::text);auto old=SelectObject(d->hDC,font);DrawTextW(d->hDC,text,-1,&d->rcItem,DT_CENTER|DT_VCENTER|DT_SINGLELINE);SelectObject(d->hDC,old);

@@ -40,6 +40,12 @@ int wmain(int argc,wchar_t** argv){
   require(reviewed.empty(),"research intake never mutates curated approvals");
  }catch(const std::exception& ex){error=ex.what();}
  if(!root.empty()){std::error_code ec;std::filesystem::remove_all(root,ec);if(ec&&error.empty())error="Temporary fixture cleanup failed";}
- if(argc==2){std::ofstream out(argv[1]);out<<"{\"passed\":[";for(size_t i=0;i<passed.size();++i)out<<(i?",":"")<<'"'<<passed[i]<<'"';out<<"],\"success\":"<<(error.empty()?"true":"false")<<",\"trainedModelInference\":false,\"scope\":\"Generated zero tensors; real Windows file and directory locks, Unicode paths, exact hashes and corruption rejection. No GPU or trained model.\"}\n";if(!out&&error.empty())error="Report write failed";}
+ if(argc==2){std::ofstream out(argv[1]);out<<"{\"passed\":[";for(size_t i=0;i<passed.size();++i)out<<(i?",":"")<<'"'<<passed[i]<<'"';out<<"],\"success\":"<<(error.empty()?"true":"false")<<",\"trainedModelInference\":false,\"scope\":\"Generated zero tensors; real Windows file and directory locks, Unicode paths, exact hashes and corruption rejection. No GPU or trained model.\"}\n";if(!out&&error.empty())error="Report write failed";
+  out.close();
+  // The workflow's artifact directory exists; retain this report beside other
+  // evidence without teaching production code any CI-specific behavior.
+  const auto evidence=std::filesystem::path(argv[1]).parent_path().parent_path().parent_path()/L"artifacts"/L"vlc";
+  if(std::filesystem::is_directory(evidence))std::filesystem::copy_file(argv[1],evidence/L"model-guard-report.json",std::filesystem::copy_options::overwrite_existing);
+ }
  if(!error.empty()){std::cerr<<error<<'\n';return 1;}std::cout<<passed.size()<<" real Windows data-intake/locking checks passed; no trained inference\n";return 0;
 }
