@@ -52,10 +52,10 @@ struct Vertex { @builtin(position) position: vec4f, @location(0) uv: vec2f };
  var xy=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));
  var o:Vertex; o.position=vec4f(xy[i],0,1); o.uv=vec2f((xy[i].x+1)*.5,(1-xy[i].y)*.5); return o;
 }`;
-function sourceShader(external: boolean) { return VERTEX + `
-@group(0) @binding(0) var source: ${external ? 'texture_external' : 'texture_2d<f32>'};
+const SOURCE = VERTEX + `
+@group(0) @binding(0) var source: texture_2d<f32>;
 @group(0) @binding(1) var samp: sampler;
-@fragment fn fs(v:Vertex)->@location(0) vec4f {return ${external ? 'textureSampleBaseClampToEdge(source,samp,v.uv)' : 'textureSampleLevel(source,samp,v.uv,0.0)'};}`; }
+@fragment fn fs(v:Vertex)->@location(0) vec4f {return textureSampleLevel(source,samp,v.uv,0.0);}`;
 /** SDR proxy composition, no HDR transform, artistic style or fabricated motion/history. */
 const COMPOSE = VERTEX + `
 struct Output { width:u32,height:u32,pitch:u32,split:f32 };
@@ -103,7 +103,7 @@ export class FramePipeline {
   private readback: ReadBuffer;
   private lost = '';
   private constructor(private canvas: HTMLCanvasElement | OffscreenCanvas, private device: Device, private geometry: Geometry,
-    private snapshotPipelines: GPUPipelineHandle[], private preprocess: GPUPipelineHandle, private output: GPUPipelineHandle, private check: GPUPipelineHandle,
+    private snapshotPipeline: GPUPipelineHandle, private preprocess: GPUPipelineHandle, private output: GPUPipelineHandle, private check: GPUPipelineHandle,
     features: GPUBufferHandle, head: GPUBufferHandle) {
     this.canvas.width = geometry.validWidth; this.canvas.height = geometry.validHeight;
     this.context = (canvas as unknown as { getContext(type: string): GPUCanvasHandle }).getContext('webgpu');
@@ -136,18 +136,16 @@ export class FramePipeline {
     const mirror = `fn mirror_pixel(x:u32,size:u32)->u32 { let period=2u*(size-1u);let r=x%period;return min(r,period-r); }`;
     const truncate = sources['shaders/frame.wgsl']!.match(/fn truncate_half\(value: f32\) -> u32 \{[\s\S]*?\n\}/)?.[0];
     if (!truncate) throw new Error('Pinned composition helper missing.');
-    const pipelines: GPUPipelineHandle[] = [];
-    for (const external of [false, true]) {
-      const module = await shader(device, sourceShader(external));
-      pipelines.push(await device.createRenderPipelineAsync({ layout: 'auto', vertex: { module, entryPoint: 'vs' }, fragment: { module, entryPoint: 'fs', targets: [{ format: 'rgba8unorm' }] } }));
-    }
+    const sourceModule = await shader(device, SOURCE);
+    const snapshot = await device.createRenderPipelineAsync({ layout: 'auto', vertex: { module: sourceModule, entryPoint: 'vs' },
+      fragment: { module: sourceModule, entryPoint: 'fs', targets: [{ format: 'rgba8unorm' }] } });
     const preModule = await shader(device, numerics + '\n' + mirror + '\n' + preprocess);
     const pre = await device.createComputePipelineAsync({ layout: 'auto', compute: { module: preModule, entryPoint: 'preprocess' } });
     const module = await shader(device, numerics + '\n' + truncate + '\n' + COMPOSE);
     const output = await device.createRenderPipelineAsync({ layout: 'auto', vertex: { module, entryPoint: 'vs' }, fragment: { module, entryPoint: 'fs', targets: [{ format: gpu()!.getPreferredCanvasFormat() }] } });
     const checkModule = await shader(device, CHECK_HEAD);
     const check = await device.createComputePipelineAsync({ layout: 'auto', compute: { module: checkModule, entryPoint: 'check' } });
-    return new FramePipeline(canvas, device, geometry, pipelines, pre, output, check, features, head);
+    return new FramePipeline(canvas, device, geometry, snapshot, pre, output, check, features, head);
   }
   private configuration(settings: Controls) {
     const s = controls(settings), g = this.geometry;
@@ -167,17 +165,23 @@ export class FramePipeline {
     const start = performance.now(), device = this.device;
     this.configuration(settings); device.queue.writeBuffer(this.invalid, 0, new Uint32Array(1)); device.pushErrorScope('validation');
     try {
-      const external = typeof VideoFrame !== 'undefined' && frame instanceof VideoFrame;
-      let resource: object;
-      if (external) resource = device.importExternalTexture({ source: frame });
-      else {
-        const image = frame as ImageBitmap, key = `${image.width}x${image.height}`;
-        if (image.width > device.limits.maxTextureDimension2D || image.height > device.limits.maxTextureDimension2D) throw new Error('Image exceeds GPU texture limit.');
-        if (key !== this.uploadSize) { this.upload?.destroy(); this.upload = device.createTexture({ size: [image.width, image.height], format: 'rgba8unorm', usage: 2 | 4 | 16 }); this.uploadSize = key; }
-        device.queue.copyExternalImageToTexture({ source: image }, { texture: this.upload, premultipliedAlpha: false }, [image.width, image.height]);
-        resource = this.upload!.createView();
+      // Explicit color/alpha conversion is intentional: direct video external textures
+      // may carry premultiplied RGB. The neural proxy requires straight SDR RGB.
+      // This reuses a GPU texture; no full-frame JavaScript pixel arrays are involved.
+      const isVideo = typeof VideoFrame !== 'undefined' && frame instanceof VideoFrame;
+      const width = isVideo ? frame.displayWidth : (frame as ImageBitmap).width;
+      const height = isVideo ? frame.displayHeight : (frame as ImageBitmap).height;
+      if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 ||
+        width > device.limits.maxTextureDimension2D || height > device.limits.maxTextureDimension2D)
+        throw new Error('Frame dimensions are invalid or exceed the GPU texture limit.');
+      const key = `${width}x${height}`;
+      if (key !== this.uploadSize) {
+        this.upload?.destroy(); this.upload = device.createTexture({ size: [width, height], format: 'rgba8unorm', usage: 2 | 4 | 16 });
+        this.uploadSize = key;
       }
-      const pipeline = this.snapshotPipelines[external ? 1 : 0]!;
+      device.queue.copyExternalImageToTexture({ source: frame },
+        { texture: this.upload, premultipliedAlpha: false, colorSpace: 'srgb' }, [width, height]);
+      const resource = this.upload!.createView(), pipeline = this.snapshotPipeline;
       const group = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource }, { binding: 1, resource: this.sampler }] });
       const encoder = device.createCommandEncoder();
       const pass = encoder.beginRenderPass({ colorAttachments: [{ view: this.snapshot.createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 } }] });

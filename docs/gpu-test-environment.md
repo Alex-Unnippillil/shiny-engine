@@ -16,10 +16,12 @@ The ordinary `npm run check` does not require a display. Do not claim a physical
 
 The initial independent software-compositor configuration failed while creating WebGPU canvas shared images. A separate minimal diagnostic reproduced the failure before any neural code. A shared Vulkan/ANGLE configuration rendered correct GPU texture bytes. On the tested headed software stack, immediate canvas snapshots contained the rendered image while a later canvas read could return cleared bytes.
 
-The adapter's `exportPNG` now re-presents the retained snapshot/head buffers and calls canvas serialization in the same JavaScript task as submission. It does not await queue completion before asking HTMLCanvasElement/OffscreenCanvas to copy their bitmap. The resulting serialization and GPU completion are then awaited together. This prevents an export from depending on an expired presentation texture.
+The adapter's `exportPNG` re-presents retained snapshot/head buffers and calls canvas serialization in the same JavaScript task as submission. It does not await queue completion before asking HTMLCanvasElement/OffscreenCanvas to copy their bitmap. Serialization and GPU completion are then awaited together. Exports no longer depend on an expired presentation texture.
 
-The regression test decodes the actual exported PNGs and checks original/enhanced values, retained alpha, VideoFrame input and OffscreenCanvas output. Full input feature buffers are read back in tests only to verify conditioning and periodic padding; production reads only a four-byte validation flag.
+The regression test decodes actual exported PNGs and checks original/enhanced values, alpha, VideoFrame input and OffscreenCanvas output. Input feature buffers are read back in tests only; production reads only a four-byte validation flag. Synthetic residuals are not trained-model output. Check the exact revision's CI result.
 
-Do not relax pixel assertions or report blank output as a passing inference test. The synthetic residual used by this suite is explicitly not trained-model output. See the exact revision's CI result, not an earlier test report.
+## Video-frame alpha normalization
 
-Primary API references: WebGPU canvas rendering/automatic expiry at `https://gpuweb.github.io/gpuweb/`, and HTML canvas/OffscreenCanvas serialization at `https://html.spec.whatwg.org/multipage/canvas.html`.
+The transparent VideoFrame fixture exposed premultiplied RGB when sampled directly as an external texture. The frame bridge uses `copyExternalImageToTexture` with explicit `premultipliedAlpha: false` and `colorSpace: srgb` for both ImageBitmap and VideoFrame. Copy dimensions use displayWidth/displayHeight for video, not coded allocation size. The reusable GPU texture contains normalized SDR input before resampling/model preprocessing. This is an explicit GPU copy/conversion, not a zero-copy claim. Tests compare the same semitransparent source through both input types and actual exported PNG bytes.
+
+Primary API references: WebGPU canvas expiry and color conversion at `https://gpuweb.github.io/gpuweb/`, and canvas serialization at `https://html.spec.whatwg.org/multipage/canvas.html`.
