@@ -63,7 +63,7 @@ struct NeuralPanel::Impl {
    case WM_SIZE:p->layout();return 0;case WM_PAINT:p->paint();return 0;case WM_TIMER:p->tick();return 0;
    case WM_CTLCOLORSTATIC:SetTextColor(reinterpret_cast<HDC>(w),shiny::ui::text);SetBkColor(reinterpret_cast<HDC>(w),shiny::ui::bg);return reinterpret_cast<LRESULT>(shiny::ui::backgroundBrush);
    case WM_HSCROLL:if(p->session&&p->session->ready()&&p->latest){auto image=*p->latest;image.enhanced.clear();image.header.tone=static_cast<float>(SendMessageW(GetDlgItem(h,Tone),TBM_GETPOS,0,0))/100;image.header.structure=static_cast<float>(SendMessageW(GetDlgItem(h,Structure),TBM_GETPOS,0,0))/100;image.header.blend=static_cast<float>(SendMessageW(GetDlgItem(h,Blend),TBM_GETPOS,0,0))/100;p->session->submit(std::move(image));}return 0;
-   case WM_COMMAND:p->action(LOWORD(w));return 0;case WM_KEYDOWN:if(w==VK_ESCAPE){SendMessageW(h,WM_CLOSE,0,0);return 0;}break;
+   case WM_COMMAND:if(LOWORD(w)==IDCANCEL){SendMessageW(h,WM_CLOSE,0,0);return 0;}p->action(LOWORD(w));return 0;case WM_KEYDOWN:if(w==VK_ESCAPE){SendMessageW(h,WM_CLOSE,0,0);return 0;}break;
    case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(l)->ptMinTrackSize={920,600};return 0;
    case WM_CLOSE:KillTimer(h,1);p->stop();DestroyWindow(h);return 0;case WM_DESTROY:p->hwnd=nullptr;return 0;
   }}catch(const std::exception& e){if(p->info)SetWindowTextW(p->info,wide(e.what()).c_str());}return DefWindowProcW(h,m,w,l);

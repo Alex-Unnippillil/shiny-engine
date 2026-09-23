@@ -11,7 +11,7 @@ public static class ShinyUiTest {
  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
  [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr h);
  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
- [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,string title);
+ [DllImport("user32.dll",EntryPoint="FindWindowW",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,IntPtr title);
  [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h,uint command);
  [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr h);
  [DllImport("user32.dll")] public static extern IntPtr GetSubMenu(IntPtr h,int index);
@@ -46,21 +46,29 @@ try {
  $passed.Add('real playback action creates a source bookmark')
  Command $main 137
  $panel=[IntPtr]::Zero
- Wait-For { $script:panel=[ShinyUiTest]::FindWindow('ShinyNativeNeural',$null); $panel -ne [IntPtr]::Zero } 'native neural panel'
+ Wait-For { $script:panel=[ShinyUiTest]::FindWindow('ShinyNativeNeural',[IntPtr]::Zero); $panel -ne [IntPtr]::Zero } 'native neural panel'
  if ([ShinyUiTest]::GetWindow($panel,4) -ne $main) { throw 'Unexpected workbench owner' }
  if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,103))) { throw 'Unreviewed native inference was enabled' }
  Start-Sleep -Milliseconds 1500
  Snapshot $panel 'player-neural-workbench.png'
  $passed.Add('native neural panel opens with original preview and disabled model preparation')
- [void][ShinyUiTest]::SendMessage($panel,0x10,[IntPtr]::Zero,[IntPtr]::Zero)
+ # IsDialogMessage routes Escape from focused controls through IDCANCEL.
+ Command $panel 2
  Wait-For { -not [ShinyUiTest]::IsWindow($panel) } 'panel closes'
  if (-not [ShinyUiTest]::IsWindow($main)) { throw 'Workbench closure destroyed primary playback' }
- $passed.Add('workbench closure disposes secondary session without closing primary player')
+ $passed.Add('dialog cancellation disposes secondary session without closing primary player')
  Command $main 111
  Command $main 110
  Wait-For { (Text ([ShinyUiTest]::GetDlgItem($main,304))) -match '^Playing with libVLC' } 'reopen primary playback'
  $passed.Add('stop and replay remain usable after workbench teardown')
  @{passed=$passed;trainedModelInference=$false;physicalGpuValidated=$false;scope='Actual Windows user-interface actions with original synthetic media. No trained model or sound-device certification.'} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-workbench-report.json')
+} catch {
+ $failure = $_
+ if ($main -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($main)) {
+  @{status=(Text ([ShinyUiTest]::GetDlgItem($main,304)));passed=$passed;error=$failure.Exception.Message} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-failure.json')
+  Snapshot $main 'ui-failure-main.png'
+ }
+ throw $failure
 } finally {
  if ($main -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($main)) { [void][ShinyUiTest]::SendMessage($main,0x10,[IntPtr]::Zero,[IntPtr]::Zero) }
  if (-not $proc.WaitForExit(10000)) { $proc.Kill();throw 'Player failed to close after UI checks' }
