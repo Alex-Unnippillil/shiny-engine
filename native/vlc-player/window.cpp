@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "ui.hpp"
+#include <uxtheme.h>
 namespace shiny::ui {
 
 HWND Window::control(const wchar_t* cls,const wchar_t* name,int id,DWORD extra){
@@ -9,7 +10,7 @@ HWND Window::control(const wchar_t* cls,const wchar_t* name,int id,DWORD extra){
 
 HWND Window::button(const wchar_t* name,int id){return control(L"BUTTON",name,id,BS_OWNERDRAW);}
 
-HWND Window::label(const wchar_t* name,int id){return control(L"STATIC",name,id,SS_LEFT);}
+HWND Window::label(const wchar_t* name,int id){auto h=control(L"STATIC",name,id,SS_LEFT);SetWindowLongPtrW(h,GWL_STYLE,GetWindowLongPtrW(h,GWL_STYLE)&~WS_TABSTOP);return h;}
 
 void Window::move(int id,int x,int y,int w,int h){if(auto c=GetDlgItem(hwnd,id))MoveWindow(c,x,y,std::max(1,w),std::max(1,h),TRUE);}
 
@@ -43,7 +44,8 @@ void Window::create(){
   video=CreateWindowW(L"STATIC",L"",WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS|SS_BLACKRECT,0,0,100,100,hwnd,nullptr,nullptr,nullptr);
   treatmentVideo=CreateWindowW(L"STATIC",L"",WS_CHILD|WS_CLIPSIBLINGS|SS_BLACKRECT,0,0,100,100,hwnd,nullptr,nullptr,nullptr);
   label(L"PLAY QUEUE",302);queueBox=control(L"LISTBOX",L"",QUEUE,LBS_NOTIFY|WS_VSCROLL|LBS_NOINTEGRALHEIGHT);button(L"Clear",CLEAR);
-  control(L"BUTTON",L"Live VLC adjustments (not DLSS)",FXENABLE,BS_AUTOCHECKBOX);
+  auto effectsToggle=control(L"BUTTON",L"Live VLC adjustments (not DLSS)",FXENABLE,BS_AUTOCHECKBOX);
+  SetWindowTheme(effectsToggle,L"",L""); // Use explicit dark text colors, not the default themed black caption.
   const int ids[]={CONTRAST,BRIGHTNESS,SATURATION,GAMMA};const wchar_t* names[]={L"Contrast",L"Brightness",L"Saturation",L"Gamma"};
   for(int i=0;i<4;++i){label(names[i],310+i);auto s=control(TRACKBAR_CLASSW,names[i],ids[i],TBS_HORZ|TBS_NOTICKS);SendMessageW(s,TBM_SETRANGE,TRUE,MAKELPARAM(10,300));SendMessageW(s,TBM_SETPOS,TRUE,100);}
   button(L"Reset adjustments",RESETFX);button(L"DLSS 5 status",DLSS);

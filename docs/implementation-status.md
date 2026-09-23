@@ -1,4 +1,4 @@
-# Implementation status — 0.4.0 LookLock creator review
+# Implementation status — 0.5.0 native libVLC player
 
 This status document is separate from the unchanged input research plan. It does not retroactively rewrite the plan's research date, performance claims, or proposed acceptance gates.
 
@@ -19,10 +19,16 @@ The original 0.1.0 baseline is a spatial-enhancement application, not a reproduc
 
 Version 0.3.0 adds pinned MIT OpenDLSS-NR browser source as a submodule; notices and loader modifications are explicit. The default build cannot activate neural inference with its empty reviewed-model register. Original media playback and model metadata inspection work independently. CI tests the GPU frame wrapper with synthetic residuals, not a trained network or vendor parity. This is a separately gated browser research path and does not complete M4. See `neural-lab.md`.
 
-Native Windows code is unchanged. No NVIDIA runtime, weights, HDR or click-through desktop overlay is included. Keep measurements, source revision, hardware and limitations together in each evidence report.
+The Windows capture companion code is unchanged. No NVIDIA runtime, weights, HDR or click-through desktop overlay is included. Keep measurements, source revision, hardware and limitations together in each evidence report.
 
 ## 0.4.0 — LookLock
 
 A working still-frame creator workflow for external DLSS/other processed outputs: original/video-frame selection, same-frame confirmation, pixel-exact source locks, outside feather, raw change map, alpha-aware composition, independent lossless PNG output, three-panel review board, protection mask, source-bound recipes and privacy-conscious numerical reports. The synthetic demonstration is not neural output. Browser and extension entry points are included without new permissions or dependencies.
 
 This does not complete the NR/model-rights, native, temporal, or physical-GPU milestones above. No model register is relaxed and no inference is activated. See `looklock.md` for the specific guarantees and limitations.
+
+## 0.5.0 — native libVLC player
+
+Independent Windows x64 player using VideoLAN public C APIs at pinned source `6de05adcbaf2e8b85fe86aad4169393098628119` and a separately installed libVLC 3.0.24+ runtime. Real local/stream playback, queue and transport controls, tracks/subtitles, timing, equalizer, VLC image adjustments, optional driver-super-resolution request, external-output comparison and snapshots. Full VLC opens a separate installed VLC interface for features not duplicated here. The extension provides setup and build navigation; it does not install or launch native code.
+
+The unchanged native capture companion and browser neural gates are not the new player. Native DLSS 5 inference remains unimplemented: no model, runtime, native NR texture adapter or temporal pipeline is added. Driver VSR is distinct and hardware execution is unverified. Real software decoding/filter tests do not certify VSR, HDR, sound-device output or full VLC parity. See `../native/vlc-player/README.md` and the VLC CI artifacts.

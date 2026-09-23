@@ -18,7 +18,7 @@ if(WIN32)
   # player.rc already embeds the complete asInvoker / common-controls / DPI manifest.
   # Do not generate a second resource with the same ID at link time.
   target_link_options(ShinyVlcPlayer PRIVATE /MANIFEST:NO)
-  target_link_libraries(ShinyVlcPlayer PRIVATE comctl32 comdlg32 shell32 ole32 dwmapi gdiplus shlwapi uuid)
+  target_link_libraries(ShinyVlcPlayer PRIVATE comctl32 comdlg32 shell32 ole32 dwmapi gdiplus shlwapi uuid uxtheme)
   set_property(TARGET ShinyVlcPlayer PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   if(VLC_TEST_RUNTIME AND VLC_TEST_FIXTURE)
     add_test(NAME vlc-real-playback COMMAND ShinyVlcPlayer --self-test "${VLC_TEST_RUNTIME}" "${VLC_TEST_FIXTURE}" "${CMAKE_BINARY_DIR}/playback-report.json")

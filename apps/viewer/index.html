@@ -13,7 +13,7 @@
 <body>
   <a class="skip" href="#workspace">Skip to workspace</a>
   <header class="topbar">
-    <a class="brand" href="/index.html" aria-label="Shiny Engine home"><span class="brand-mark" aria-hidden="true">S</span><span>shiny<span class="brand-light">engine</span></span><span class="version">ALPHA 0.4</span></a>
+    <a class="brand" href="/index.html" aria-label="Shiny Engine home"><span class="brand-mark" aria-hidden="true">S</span><span>shiny<span class="brand-light">engine</span></span><span class="version">ALPHA 0.5</span></a>
     <nav aria-label="Main"><a href="#workspace" class="active">Media lab</a><a href="/apps/looklock/index.html">LookLock</a><a href="#native-panel">Companion</a><a href="#diagnostics">Diagnostics</a></nav>
     <button id="help" class="quiet" aria-haspopup="dialog" title="Help and keyboard shortcuts (?)">Help <kbd>?</kbd></button>
   </header>
@@ -63,6 +63,7 @@
         <div class="slider-row"><label for="denoise">Smoothing</label><output id="denoise-value" for="denoise">8%</output><input type="range" id="denoise" min="0" max="50" value="8"><small>Softens low-contrast noise, not missing detail.</small></div>
         <div class="select-row"><label for="scale">Output scale</label><select id="scale"><option value="1">Native · 1×</option><option value="1.5">Larger · 1.5×</option><option value="2">Larger · 2×</option></select><small>Spatial resampling. Output is capped at 8.3 megapixels and 4096 pixels per axis.</small></div>
         <button id="reset" class="button reset">Reset adjustments</button><p id="preferences-note" class="subtle">Settings remembered locally. Files are never stored.</p>
+        <a class="button reset" href="/apps/player/index.html">Windows VLC player ↗</a>
         <a class="button reset" href="/apps/nr/index.html">Experimental neural lab ↗</a><details class="locked"><summary>About this processing</summary><p>These are spatial filters, not DLSS, AI super-resolution, or recovered ground-truth detail. Experimental neural rendering has its own approval-gated lab. No proprietary weights or NVIDIA DLLs are bundled.</p></details>
       </aside>
     </section>
