@@ -1,6 +1,6 @@
 {
   "name": "shiny-engine",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Local-first media enhancement with a separately gated OpenDLSS-NR adapter. No proprietary models.",
@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test tests/unit/*.test.mjs",
     "check": "npm run typecheck && npm test && node scripts/audit.mjs",
-    "test:browser": "python tests/browser/smoke.py && python tests/browser/neural.py && python tests/browser/neural-extension.py",
+    "test:browser": "python tests/browser/smoke.py && python tests/browser/neural.py && python tests/browser/neural-extension.py && python tests/browser/looklock.py",
     "package": "npm run check && python scripts/package.py"
   },
   "devDependencies": { "typescript": "5.8.3" }
