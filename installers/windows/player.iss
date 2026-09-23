@@ -5,7 +5,7 @@
 [Setup]
 AppId={{EF321531-DF40-48C4-B448-FA047E46B2E1}
 AppName=Shiny Player
-AppVersion=0.6.0
+AppVersion=0.7.0
 AppPublisher=Shiny Engine contributors
 AppPublisherURL=https://github.com/Alex-Unnippillil/shiny-engine
 DefaultDirName={localappdata}\Programs\ShinyPlayer
@@ -16,7 +16,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 WizardStyle=modern
 DisableProgramGroupPage=yes
-OutputBaseFilename=ShinyPlayer-0.6.0-Windows-x64-Setup
+OutputBaseFilename=ShinyPlayer-0.7.0-Windows-x64-Setup
 OutputDir=..\..\artifacts\vlc
 Compression=lzma2
 SolidCompression=yes
@@ -45,7 +45,7 @@ var
 procedure InitializeWizard;
 begin
   Progress := CreateOutputProgressPage('Preparing the playback engine', 'Downloading and verifying the official VideoLAN archive. No NVIDIA models are downloaded.');
-  WizardForm.WelcomeLabel2.Caption := 'Install Shiny Player and its native OpenDLSS-NR research worker.' + #13#10#13#10 + 'No trained model is approved or bundled; DLSS 5 inference is not activated by installing this package. Normal VLC playback works independently.' + #13#10#13#10 + 'For playback, select the optional official VLC download or use your existing compatible 64-bit VLC installation. No administrator rights are required.';
+  WizardForm.WelcomeLabel2.Caption := 'Install Shiny Player and its native OpenDLSS-NR research worker.' + #13#10#13#10 + 'Includes opt-in DLSS-NR local research for model files you are authorized to use. No model weights are bundled or downloaded. Playback works independently; research output is unverified.' + #13#10#13#10 + 'For playback, select the optional official VLC download or use your existing compatible 64-bit VLC installation. No administrator rights are required.';
 end;
 function DownloadProgress(const Url, FileName: String; const ProgressValue, ProgressMax: Int64): Boolean;
 begin

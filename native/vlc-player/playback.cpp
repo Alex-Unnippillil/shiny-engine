@@ -2,7 +2,7 @@
 #include "ui.hpp"
 namespace shiny::ui {
 void Window::loadRuntime(const std::filesystem::path& folder){
- if(api)throw std::runtime_error("Restart the player to change VLC installations.");auto next=VlcApi::load(folder);auto nextEngine=std::make_unique<Engine>(next,video);engine=std::move(nextEngine);api=std::move(next);message(L"Ready · libVLC "+wide(api->runtimeVersion)+L" · local processing · DLSS model unavailable");
+ if(api)throw std::runtime_error("Restart the player to change VLC installations.");auto next=VlcApi::load(folder);auto nextEngine=std::make_unique<Engine>(next,video);engine=std::move(nextEngine);api=std::move(next);message(L"Ready · libVLC "+wide(api->runtimeVersion)+L" · local processing · local neural research requires your model");
 }
 void Window::addFiles(const std::vector<std::filesystem::path>& files){
  size_t first=queue.items.size();for(auto& p:files){auto full=std::filesystem::absolute(p);if(!std::filesystem::is_regular_file(full))continue;queue.add({full.wstring(),full.filename().wstring(),false});SendMessageW(queueBox,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(queue.items.back().title.c_str()));}if(queue.items.size()>first)select(first);
@@ -26,6 +26,8 @@ void Window::fullVlc(){
 }
 void Window::refreshMenu(HMENU m){
  auto clear=[&]{while(GetMenuItemCount(m)>0)DeleteMenu(m,0,MF_BYPOSITION);};
+ if(m==queueMenu){clear();for(size_t i=0;i<queue.items.size();++i)AppendMenuW(m,MF_STRING|(queue.selected==i?MF_CHECKED:0),QUEUEFIRST+i,queue.items[i].title.c_str());if(queue.items.empty())AppendMenuW(m,MF_STRING|MF_GRAYED,0,L"Queue is empty");return;}
+
  if(m==bookmarkMenu){clear();for(size_t i=0;i<bookmarks.size();++i)AppendMenuW(m,MF_STRING,BOOKMARKFIRST+i,clock(bookmarks[i]).c_str());if(bookmarks.empty())AppendMenuW(m,MF_GRAYED,0,L"Press B to bookmark this source");return;}
  if(m==deviceMenu){clear();audioDevices={""};AppendMenuW(m,MF_STRING,DEVICEFIRST,L"System default");if(engine){auto* list=api->Devices(engine->player);for(auto* p=list;p&&audioDevices.size()<100;p=p->p_next){audioDevices.emplace_back(p->psz_device?p->psz_device:"");AppendMenuW(m,MF_STRING,DEVICEFIRST+audioDevices.size()-1,wide(p->psz_description?p->psz_description:"Audio device").c_str());}if(list)api->FreeDevices(list);}return;}
  if(m==audioMenu||m==subMenu){clear();auto& tracks=m==audioMenu?audioTracks:subTracks;tracks=engine?engine->tracks(m==audioMenu):std::vector<std::pair<int,std::wstring>>{};int current=engine?(m==audioMenu?api->GetAudioTrack(engine->player):api->GetSubtitle(engine->player)):-99;
@@ -40,7 +42,7 @@ void Window::effectsFromControls(){
 }
 void Window::diagnostics(const std::filesystem::path& path){
  unsigned width=0,height=0;libvlc_media_stats_t stats{};if(engine){api->VideoSize(engine->player,0,&width,&height);if(engine->media)api->GetStats(engine->media,&stats);}
- std::ofstream out(path);out<<"{\n  \"schema\":1,\n  \"app\":\"0.6.0\",\n  \"runtime\":\""<<(api?api->runtimeVersion:"not loaded")<<"\",\n  \"width\":"<<width<<",\n  \"height\":"<<height<<",\n  \"decodedVideoFrames\":"<<stats.i_decoded_video<<",\n  \"displayedFrames\":"<<stats.i_displayed_pictures<<",\n  \"lostPictures\":"<<stats.i_lost_pictures<<",\n  \"importedComparison\":"<<(treatment?"true":"false")<<",\n  \"driverSuperResolutionRequested\":"<<(engine&&engine->driverSuperResolutionRequested?"true":"false")<<",\n  \"driverSuperResolutionVerified\":false,\n  \"nativeNrModelApproved\":false,\n  \"dlss5Inference\":false,\n  \"limitation\":\"No trained-model inference, hardware speed certification or frame-exact dual-player sync. No paths or URLs included.\"\n}\n";if(!out)throw std::runtime_error("Could not save diagnostics.");
+ std::ofstream out(path);out<<"{\n  \"schema\":1,\n  \"app\":\"0.7.0\",\n  \"runtime\":\""<<(api?api->runtimeVersion:"not loaded")<<"\",\n  \"width\":"<<width<<",\n  \"height\":"<<height<<",\n  \"decodedVideoFrames\":"<<stats.i_decoded_video<<",\n  \"displayedFrames\":"<<stats.i_displayed_pictures<<",\n  \"lostPictures\":"<<stats.i_lost_pictures<<",\n  \"importedComparison\":"<<(treatment?"true":"false")<<",\n  \"driverSuperResolutionRequested\":"<<(engine&&engine->driverSuperResolutionRequested?"true":"false")<<",\n  \"driverSuperResolutionVerified\":false,\n  \"nativeNrModelApproved\":false,\n  \"dlss5Inference\":false,\n  \"limitation\":\"Main-player metrics only. Separate neural experiments have their own reports. No hardware speed certification or frame-exact dual-player sync. No paths or URLs included.\"\n}\n";if(!out)throw std::runtime_error("Could not save diagnostics.");
 }
 void Window::tick(){
  if(engine){auto st=api->State(engine->player);SetWindowTextW(GetDlgItem(hwnd,PLAY),st==libvlc_Playing?L"Pause":L"Play");

@@ -48,8 +48,13 @@ std::string NrProcess::readText(std::stop_token stop,unsigned timeout){std::stri
 }
 bool NrProcess::succeeded()const{DWORD code=1;return GetExitCodeProcess(process,&code)&&code==0;}
 void NrSession::status(std::string text,bool ready){std::lock_guard lock(mutex);statusText=std::move(text);isReady=ready;}
-NrSession::NrSession(const std::filesystem::path& model){thread=std::jthread([this,model](std::stop_token stop){try{
- auto child=std::make_shared<NrProcess>(L"--serve "+quote(model.wstring()));{std::lock_guard lock(mutex);process=child;}if(stop.stop_requested()){child->cancel();return;}
+NrSession::NrSession(const std::filesystem::path& model,std::string researchDigest){thread=std::jthread([this,model,researchDigest](std::stop_token stop){try{
+ auto arguments=L"--serve "+quote(model.wstring());
+ if(!researchDigest.empty()){
+  if(researchDigest.size()!=64||researchDigest.find_first_not_of("0123456789abcdef")!=std::string::npos)throw std::runtime_error("Invalid research consent fingerprint.");
+  arguments=L"--serve-research "+quote(model.wstring())+L" "+wide(researchDigest);
+ }
+ auto child=std::make_shared<NrProcess>(arguments);{std::lock_guard lock(mutex);process=child;}if(stop.stop_requested()){child->cancel();return;}
  nrwire::Header greeting;child->receive(&greeting,sizeof greeting,stop,120000);nrwire::validateReply(greeting);std::string text(greeting.bytes,'\0');child->receive(text.data(),text.size(),stop);
  if(greeting.command!=nrwire::Ready)throw std::runtime_error(text);status(text,true);
  while(!stop.stop_requested()){std::optional<NrImage> frame;{std::unique_lock lock(mutex);changed.wait(lock,stop,[&]{return pending.has_value();});if(stop.stop_requested())break;frame=std::move(pending);pending.reset();}
@@ -65,6 +70,7 @@ void NrSession::submit(NrImage frame){std::lock_guard lock(mutex);if(!isReady||d
 std::optional<NrImage> NrSession::take(){std::lock_guard lock(mutex);auto result=std::move(complete);complete.reset();return result;}
 std::string NrSession::status(){std::lock_guard lock(mutex);return statusText;}
 bool NrSession::ready(){std::lock_guard lock(mutex);return isReady;}
+bool NrSession::finished(){std::lock_guard lock(mutex);return done;}
 struct NrSource::Pixels {
  std::mutex mutex;unsigned char* data=nullptr;uint32_t width,height,pitch;std::atomic<uint32_t> frame{0};uint32_t previous=0;uint64_t hash=0;
  Pixels(uint32_t w,uint32_t h):width(w),height(h),pitch((w*4+31)&~31u){const size_t bytes=static_cast<size_t>(pitch)*((h+31)&~31u);data=static_cast<unsigned char*>(_aligned_malloc(bytes,64));if(!data)throw std::bad_alloc();memset(data,0,bytes);}
@@ -82,7 +88,7 @@ NrSource::NrSource(std::shared_ptr<VlcApi> api,const Item& item,uint32_t width,u
 }
 NrSource::~NrSource(){engine.reset();pixels.reset();}
 std::optional<NrImage> NrSource::sample(){auto n=pixels->frame.load();if(!n||n==pixels->previous)return std::nullopt;pixels->previous=n;
- NrImage result;result.header.width=pixels->width;result.header.height=pixels->height;result.header.bytes=pixels->width*pixels->height*4;result.header.sequence=n;result.original.resize(result.header.bytes);
+ NrImage result;result.header.width=pixels->width;result.header.height=pixels->height;result.header.bytes=pixels->width*pixels->height*4;result.header.sequence=n;result.sourceTimeMs=engine->time();result.original.resize(result.header.bytes);
  std::lock_guard lock(pixels->mutex);for(size_t i=0;i<result.original.size();i+=4){auto j=(i/4/pixels->width)*pixels->pitch+(i/4%pixels->width)*4;result.original[i]=pixels->data[j+2];result.original[i+1]=pixels->data[j+1];result.original[i+2]=pixels->data[j];result.original[i+3]=255;}return result;
 }
 void NrSource::pause(bool pause){engine->pause(pause);}void NrSource::seek(int64_t t){engine->seek(t);}int64_t NrSource::time()const{return engine->time();}bool NrSource::playing()const{return engine->playing();}bool NrSource::seekable()const{return engine->seekable();}

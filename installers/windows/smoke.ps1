@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
-$installer = Join-Path $PWD 'artifacts/vlc/ShinyPlayer-0.6.0-Windows-x64-Setup.exe'
-$target = Join-Path $env:RUNNER_TEMP 'ShinyPlayer-Installer-Test'
+$installer = Join-Path $PWD 'artifacts/vlc/ShinyPlayer-0.7.0-Windows-x64-Setup.exe'
+$temporaryRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [IO.Path]::GetTempPath() }
+$target = Join-Path $temporaryRoot ('ShinyPlayer-Installer-Test-' + [guid]::NewGuid().ToString('N'))
 $proof = Join-Path $PWD 'artifacts/vlc'
 function Run-Checked($exe, $arguments, $timeout = 90000) {
   $p = Start-Process $exe -ArgumentList $arguments -PassThru

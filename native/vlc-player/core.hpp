@@ -13,8 +13,8 @@
 #include <vector>
 namespace shiny::player {
 inline constexpr size_t maxQueue = 1000;
-inline constexpr const char* version = "0.6.0";
-inline constexpr const char* dlssStatus = "Native OpenDLSS graph packaged; trained inference unavailable without a reviewed model.";
+inline constexpr const char* version = "0.7.0";
+inline constexpr const char* dlssStatus = "Native OpenDLSS graph packaged; opt-in local research requires validated model data and a supported GPU.";
 inline std::wstring lower(std::wstring s) { for (auto& c : s) c = static_cast<wchar_t>(std::towlower(c)); return s; }
 inline void plain(const std::wstring& s) {
  if (s.empty() || s.size() > 32760 || std::any_of(s.begin(),s.end(),[](wchar_t c){return c<32||c==127;}))throw std::invalid_argument("Empty, oversized or control-containing source.");

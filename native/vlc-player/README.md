@@ -1,51 +1,33 @@
-# Shiny Player 0.6.0 — Windows x64
+# Shiny Player 0.7.0 — Windows x64
 
-Independent player using the real VideoLAN libVLC engine. **The native OpenDLSS-NR graph is compiled and included, but no trained model is approved or bundled. This is not activated DLSS 5 or a complete clone of VLC's interface.** No VLC/NVIDIA runtime binaries or model weights are bundled.
+A local VideoLAN libVLC player with an opt-in OpenDLSS-NR research studio. The player works independently of any model. Neural experiments use local data you are authorized to use; they are not certified NVIDIA DLSS output.
 
-## Windows setup and portable builds
+## Install
 
-Use **ShinyPlayer-0.6.0-Windows-x64-Setup.exe** for per-user installation, Start menu shortcuts and uninstall. Its optional checkbox downloads the hash-verified official VLC runtime from VideoLAN into this app's own runtime folder. It does not modify a system VLC installation. For offline setup, use an existing compatible VLC or supply the matching cached archive with `/TASKS=vlcruntime /VLCARCHIVE="C:\path\vlc-3.0.24-win64.zip"`. The installer includes the independent application and native worker, not VLC or NVIDIA runtime data. It is unsigned.
+Run `ShinyPlayer-0.7.0-Windows-x64-Setup.exe` for per-user installation, shortcuts and uninstall, or extract `ShinyPlayer-0.7.0-Windows-x64-Portable.zip`. No administrator rights are required. These packages are unsigned.
 
-Alternatively extract the portable ZIP and install official **64-bit VLC 3.0.24 or newer in the 3.0 series**. Run `ShinyVlcPlayer.exe`. The app-private runtime and standard `Program Files/VideoLAN/VLC` installation are detected; otherwise select **Media > Locate installed VLC**. Selecting a directory authorizes executing its native libraries/plugins. Use a trusted official installation. VLC 4 has a different ABI and is not accepted.
+Setup can optionally download the hash-verified official VLC 3.0.24 x64 runtime from VideoLAN into the application's private directory. Otherwise use an existing official 64-bit VLC 3.0.24+ in the 3.0 series. Use **Media > Locate installed VLC** when it is not in a standard location. VLC 4 is a different ABI and is not supported.
 
-Download the setup, portable package, source archives, checksums and reports from the repository's **v0.6.0 release**. Windows x64 is the only native installer currently provided. macOS/Linux installers are not implemented. The browser extension's setup page does not install or launch native code.
+For offline setup, supply an existing runtime or a matching cached archive using `/TASKS=vlcruntime /VLCARCHIVE="C:\path\vlc-3.0.24-win64.zip"`. The installer does not bundle VLC, NVIDIA binaries or models. Windows x64 is the only native build target; no macOS/Linux installers are claimed.
 
-## Native Neural Workbench
+## Native research
 
-Open a seekable local video and choose **Neural workbench**. It has an independent muted VLC decoder, actual native Vulkan feature probe, local model fingerprinting, a private OpenDLSS-NR worker and matched-frame output controls. Its **Prepare** button remains disabled with the empty reviewed-model register in this distribution. Selecting a folder does not grant model approval.
+Open a local video, select **DLSS-NR research**, choose **Local research**, inspect a compatible model folder, acknowledge authorized use and prepare. Tone, structure and mix sliders, paused-input comparison, wipe/original/output views, PNG export and experiment reports are provided. Preparation requires valid files and explicit session intent; local data is not silently production-approved.
 
-See the included `native-neural.md`. A reviewed build's integration processes independent 33–512-pixel SDR frames with explicit CPU upload/readback. It has no temporal history, audio synchronization, 4K, vendor parity or real-time certification. The panel can be closed independently; stopping primary playback also closes it. The panel's Stop button cancels checks/inference but retains its original preview. Close the panel to dispose its decoder too.
+See `research-mode.md` included with this package. Actual trained-model inference and GPU performance remain unverified by ordinary CI. The preview is independent SDR, up to 512 pixels per longest edge, with CPU transfers and no main-audio synchronization or temporal reconstruction.
 
 ## Playback
 
-Open/drop files or explicitly enter HTTP, HTTPS, RTSP, RTP, UDP or SRT media URLs. Controls include queues, repeat/shuffle, seeking, A-B loops, speed, audio/subtitle track selection, external subtitles, timing offsets, equalizer presets, aspect/crop, deinterlace, chapters, frame step, fullscreen and PNG snapshots, subject to input/runtime support. Installed VLC plugins determine format support; no universal codec, disc, device or URL claim.
+Queues/reordering/repeat/shuffle; seek/speed/A-B loops/bookmarks; jump-to-time; audio output/track/equalizer; subtitles/timing; chapters/frame-step; aspect/crop/deinterlace; fullscreen/cinema/always-on-top; snapshots. The DPI-aware layout reflows smaller windows and keeps queue selection available in Playback. **Full VLC** opens the original separate VLC interface for advanced features not duplicated here. Codec support depends on installed VLC modules and the input.
 
-**Cinema view** hides the queue/adjustment sidebar. **Always-on-top** is in Video. **J** jumps to seconds or HH:MM:SS. **B** adds an in-memory source bookmark; changing source clears bookmarks. Playback lists them. Media reorders selected queue items. Audio enumerates active output devices. Tools shows media information without paths or credentials.
+Conventional VLC image adjustments are not AI. The optional driver-super-resolution request uses VLC's D3D11 scaler and may invoke RTX VSR on supported hardware; it is not DLSS 5 and a request is not proof of execution. Imported comparison simply plays externally processed video.
 
-**Video > Request driver super resolution on next open** passes VLC's D3D11 `super` option on the next media open. Its NVIDIA path requests RTX Video Super Resolution on suitable hardware. This is NOT DLSS 5. The app reports a request, not verified driver execution or improved image quality. Disable and reopen media to return to automatic output. It is off by default.
+## Keys and privacy
 
-The four sliders use VLC's conventional contrast, brightness, saturation and gamma filters. They are not AI. Disable adjustments to bypass. HDR/filter compatibility is not certified; tests use SDR fixtures.
+Space play/pause; S stop; E frame; arrows seek; F fullscreen; C cinema; B bookmark; J time; N/P queue; M mute; brackets A/B. Escape closes the research window or leaves fullscreen/stops primary playback. Focused controls retain ordinary keyboard behavior.
 
-**Compare video** plays an externally processed file beside the original with source audio only. Confirm matching timeline and crop. Seeking is best-effort, not frame-exact, and duration mismatches over 1.5 seconds are rejected. This does not generate neural output or verify provenance. Source adjustments are disabled during comparison. Snapshots are displayed VLC frames and may include filters/subtitles.
-
-**Full VLC** opens the installed original VLC interface for advanced conversion, capture, disc menus, casting and features not duplicated here. Shiny playback is paused to prevent duplicate audio. These features run separately, not inside this custom interface.
-
-## Keyboard
-
-Space play/pause; S stop; E frame step; Left/Right seek 5 seconds; Shift+Left/Right 30 seconds; N/P next/previous; M mute; F fullscreen; C cinema; B bookmark; J go to time; [ and ] A/B; Escape leave fullscreen or stop; Ctrl+O files; Ctrl+N network. Focused buttons and sliders retain their normal keyboard behavior.
-
-## Privacy and limits
-
-No history, cloud processing or telemetry. Explicit network media contacts its endpoint through VLC; local subtitle/playlist references may also be resolved by VLC. Exported M3U8 playlists contain paths/URLs and may be private. Diagnostics omit those values. Native worker commands are private bounded frame messages, not a browser shell or arbitrary-executable API. Unsigned developer build; no physical GPU/VSR, sound-device, HDR, full codec or long-session certification.
+No automatic uploads, media history, telemetry or model download. Explicit streams and file shares contact their endpoints. Exported playlists contain selected paths/URLs; diagnostics omit them. Retain source material when experimenting.
 
 ## Build
 
-Windows x64, Visual Studio C++/Windows SDK and CMake 3.24+. Compile against the `include` directory of VideoLAN source `6de05adcbaf2e8b85fe86aad4169393098628119` (3.0.24):
-
-```powershell
-cmake -S native/vlc-player -B build/vlc -A x64 -DVLC_INCLUDE_DIR=C:/src/vlc/include
-cmake --build build/vlc --config Release --parallel
-ctest --test-dir build/vlc -C Release --output-on-failure
-```
-
-For the complete native worker/shaders/installer build, use the pinned dependencies and explicit steps in `.github/workflows/vlc-player.yml`; the player-only command above does not build its worker. Official VLC test archive SHA-256 is `fcf30850371ad10c9373cc4f0f4501e7dee49e3e9ae9f20c72fb2661a1ca6323`. Real tests decode generated AVI/PCM, check actual adjusted/bypassed pixels, subtitles, transport, silent decoders and model rejection. See THIRD_PARTY_NOTICES.md for source and license details.
+From the repository root, `powershell -File scripts/Build-Windows.ps1`. Requires Windows x64, Visual Studio C++/SDK, CMake, Python3, Git and Inno Setup6. The player-only CMake build does not build its separate worker; the script/CI builds all components. See THIRD_PARTY_NOTICES.md for immutable source pins and rights.

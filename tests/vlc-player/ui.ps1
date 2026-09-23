@@ -51,7 +51,16 @@ try {
  if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,103))) { throw 'Unreviewed native inference was enabled' }
  Start-Sleep -Milliseconds 1500
  Snapshot $panel 'player-neural-workbench.png'
- $passed.Add('native neural panel opens with original preview and disabled model preparation')
+ $passed.Add('native neural panel opens with original preview and disabled preparation until valid intake')
+ # A local-research selection is not a model approval and does not fabricate output.
+ [void][ShinyUiTest]::SendMessage([ShinyUiTest]::GetDlgItem($panel,109),0xF1,[IntPtr]1,[IntPtr]::Zero)
+ Command $panel 109
+ Command $panel 110
+ Start-Sleep -Milliseconds 200
+ if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,103))) { throw 'Research checkbox enabled preparation without any inspected model' }
+ if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,113))) { throw 'Output export available before any inference result' }
+ Snapshot $panel 'player-research-mode.png'
+ $passed.Add('research selection alone does not bypass intake or fabricate an exportable result')
  # IsDialogMessage routes Escape from focused controls through IDCANCEL.
  Command $panel 2
  Wait-For { -not [ShinyUiTest]::IsWindow($panel) } 'panel closes'
