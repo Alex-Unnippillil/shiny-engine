@@ -1,19 +1,19 @@
 {
   "name": "shiny-engine",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
-  "description": "Local media player, source-preserving review and gated native/browser OpenDLSS-NR research. No proprietary models.",
+  "description": "Local media player, source-preserving review and opt-in native OpenDLSS-NR research. No proprietary models.",
   "license": "MIT",
-  "engines": { "node": ">=22" },
+  "engines": {"node": ">=22"},
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "npm run build && node scripts/serve.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test tests/unit/*.test.mjs",
     "check": "npm run typecheck && npm test && node scripts/audit.mjs",
-    "test:browser": "python tests/browser/smoke.py && python tests/browser/neural.py && python tests/browser/neural-extension.py && python tests/browser/looklock.py && python tests/browser/player.py",
+    "test:browser": "python tests/browser/smoke.py && python tests/browser/neural.py && python tests/browser/neural-extension.py && python tests/browser/looklock.py && python tests/browser/player.py && python tests/browser/player-site.py",
     "package": "npm run check && python scripts/package.py"
   },
-  "devDependencies": { "typescript": "5.8.3" }
+  "devDependencies": {"typescript": "5.8.3"}
 }
