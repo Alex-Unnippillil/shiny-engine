@@ -1,40 +1,34 @@
 # Shiny Engine
 
-Local-first media enhancement for Chrome/Edge, with native Windows applications.
+Local-first media tools for Chrome/Edge and Windows.
 
-## 0.5.0 — native VLC player
+## 0.6.0 — native OpenDLSS workbench and Windows setup
 
-The new `native/vlc-player` application uses real libVLC 3.0.24+ for Windows x64 playback, track selection, subtitles, queues, live conventional adjustments, optional driver-super-resolution requests and imported-video comparison. Use the extension **Windows VLC player** setup page or [native instructions](native/vlc-player/README.md). VLC is installed separately; no vendor runtime is bundled. **Native DLSS 5 inference remains unimplemented, and the custom player does not duplicate every VLC feature.** Full VLC opens the original interface separately for advanced operations.
+**[Windows installers and portable packages](https://github.com/Alex-Unnippillil/shiny-engine/releases/tag/v0.6.0)** · [Player instructions](native/vlc-player/README.md) · [Native NR boundaries](docs/native-neural.md)
 
-**0.4.0 added LookLock, a local creator review/composition workflow for imported neural outputs. Version 0.3.0 added an experimental OpenDLSS-NR browser adapter and isolated Neural Lab. No trained model is approved or bundled: live neural inference is locked in the shipped build. The default Media Lab and capture companion remain spatial enhancement.**
+The Windows player now includes a compiled, pinned MIT OpenDLSS-NR Vulkan graph in an isolated worker, real libVLC frame sampling and a dedicated Native Neural Workbench. **No trained model is approved or bundled, so trained DLSS 5 inference is not activated in this distribution.** GPU feature probing and manifest inspection work without a model; they are not parity or performance tests. The existing browser Neural Lab remains separately gated.
 
-The [original research plan](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md) is preserved unchanged. [Implementation status](docs/implementation-status.md) distinguishes delivered code from proposed milestones.
+Windows x64 Setup adds per-user installation, shortcuts and uninstall. Its optional checkbox downloads the SHA-256-verified official VLC runtime directly from VideoLAN. Otherwise use an existing compatible VLC3.0.24+ installation. The setup and portable package are unsigned developer builds, not browser-store products. Windows x64 is the only native installer currently supplied; macOS/Linux installers are not implemented. The extension provides setup navigation, not automatic native installation or launch.
 
-## LookLock — new in 0.4.0
+The player adds cinema view, always-on-top, in-memory source bookmarks, jump-to-time, queue reordering, output-device selection and media information. The native UI keeps local playback, enhancement status and original media distinct. Conventional VLC image filters and optional RTX VSR requests are **not DLSS5**. Full VLC opens the separately installed original interface for features not duplicated here; this custom player is not complete VLC UI parity.
 
-**Review a DLSS-treated frame without letting the treatment repaint your HUD, captions, or labels.** Open **LookLock** in the extension or Media Lab. Bring an original and a same-sized treated still, draw source-protected regions, inspect the pixel differences, and export a lossless protected composite, mask, review board, or hash-bound recipe.
+The [original research plan](docs/RESEARCH_AND_IMPLEMENTATION_PLAN.md) is preserved unchanged. [Implementation status](docs/implementation-status.md) separates source implementation from missing runtime/model/hardware validation.
 
-Local video frame selection helps send one exact source frame to your external renderer. Mouse, touch, and keyboard coordinate controls are supported. The built-in fictional replay example is deliberately edited, **not neural-generated**. LookLock does not invoke DLSS or authenticate imported results; built-in NR inference remains gated. Read [the workflow, scope and verification notes](docs/looklock.md).
+## Workspaces
 
-## Neural Lab
+**Windows player:** real libVLC local/explicit-stream playback, playlists, repeat/shuffle, seek/speed/A-B loop, audio/subtitle tracks, external subtitles, track timing, equalizer presets, aspect/crop/deinterlace, chapters, frame step, fullscreen and displayed-frame snapshots. Actual support depends on media and installed VLC plugins. Imported processed-video comparison uses source audio only and best-effort—not frame-exact—synchronization. [Details](native/vlc-player/README.md).
 
-Open **Experimental Neural Lab** from the extension popup or Media Lab. The adapter includes a pinned MIT OpenDLSS-NR graph, local model inspection, SHA-256 validation, a dedicated compute worker, GPU frame conversion/composition, serial live-frame scheduling, tone/structure controls, matched-frame comparison, cancellation, PNG export and diagnostics.
+**Native Neural Workbench:** separate muted decoder, native Vulkan probe, hash-bound model policy, private worker, independent SDR frame processing, matched-frame comparison and tone/structure/blend controls. Preparation remains blocked by the empty model register. It is a bounded research preview, not a certified real-time, temporal, 4K or audio-synchronized player backend. [Details](docs/native-neural.md).
 
-This is **not an activated or validated DLSS 5 product**. The reviewed-model register is empty. No trained-model inference, NVIDIA-output parity, physical-GPU speed, native neural capture or temporal video quality has been verified here. A file selection does not unlock the gate. Do not obtain leaked assets to use this build. See [neural integration and approval](docs/neural-lab.md).
+**Spatial Media Lab:** browser WebGPU with WebGL2 fallback, restrained sharpening/smoothing, 1–2× resampling, original/split/enhanced views, drag/keyboard comparison, local video transport, fullscreen, remembered settings, explicit PNG export views and cancellable diagnostics. Invalid files/cancelled sharing preserve the working source; obsolete streams/loads are disposed. These are original spatial filters, not AI or recovered detail.
 
-The experimental path processes independent SDR frames without optical flow or temporal history, at an explicit 320/512-pixel longest edge. These are research preview sizes, not 4K or real-time promises. The native/Vulkan integration is not implemented by this browser adapter. All reference code and shaders are bundled during build; model files are not downloaded or distributed.
+**LookLock:** import a matching original and treated still, protect selected regions with exact decoded source pixels, inspect a raw change map, and export a protected PNG, mask, review board, report or hash-bound recipe. Local video frame selection supports an external-renderer handoff. The fictional built-in example is deliberately edited, not neural output. No model is invoked and imported provenance is unverified. [Details](docs/looklock.md).
 
-## Spatial Media Lab
+**Browser Neural Lab:** pinned MIT OpenDLSS-NR browser graph, model metadata inspection, stage SHA-256 checks, dedicated worker, GPU frame preparation/composition, bounded live-frame scheduling and comparison. No approved model is bundled; file selection alone does not enable inference. Independent SDR previews have a 320/512-pixel longest edge, no optical flow/history, and no real-time promise. [Details](docs/neural-lab.md).
 
-The spatial workbench provides WebGPU with WebGL2 fallback, restrained sharpening/smoothing, 1–2× resampling, original/split/enhanced comparison and PNG export. It supports mouse/touch/keyboard comparison, fullscreen, help, and local video playback/seek/speed/audio controls. The original player remains available on renderer failure.
+## Browser development and extension installation
 
-Invalid files and cancelled sharing preserve the current source. Late streams are stopped and stale loads cannot replace a newer selection. Adjustments persist locally; **Try demo** preserves them and **Reset adjustments** restores Balanced without replacing media. PNG export explicitly chooses enhanced, original or comparison pixels. Still-frame diagnostics are cancellable.
-
-These spatial shaders are original code, not DLSS or recovered ground-truth detail. Animation/photo models, frame generation, HDR and click-through desktop overlays are not enabled. No NVIDIA DLLs or model weights are included.
-
-## Run locally
-
-Requires Node.js 22+:
+Requires Node.js22+:
 
 ```sh
 git clone --recurse-submodules https://github.com/Alex-Unnippillil/shiny-engine.git
@@ -43,33 +37,31 @@ npm ci --ignore-scripts
 npm run dev
 ```
 
-For an existing checkout, update the pinned reference before building:
+Existing checkout:
 
 ```sh
+git switch main
+git pull --ff-only origin main
 git submodule update --init -- third_party/opendlss-nr
+npm ci --ignore-scripts
+npm run build
 ```
 
-Open `http://127.0.0.1:4173`. Neural Lab is at `/apps/nr/index.html`; native player setup is `/apps/player/index.html`. In the spatial lab, **B** compares and **Escape** dismisses help/fullscreen, cancels a pending operation or stops the browser session. In Neural Lab, **Escape** stops capture and its worker.
+Open `http://127.0.0.1:4173`. Workspaces: `/apps/viewer/index.html`, `/apps/looklock/index.html`, `/apps/nr/index.html`, `/apps/player/index.html` (native setup).
 
-The spatial lab accepts PNG/JPEG/WebP/AVIF images and browser-decodable MP4/WebM/Ogg videos. Images are limited to 50 MiB / 33 megapixels; videos to 2 GiB. Spatial output is capped at 4096 pixels per axis and approximately 8.3 megapixels. Actual dimensions are shown. PNG exports one still frame, not a video recording.
+At `chrome://extensions` or `edge://extensions`, enable Developer mode and **Load unpacked** `dist/extension`, not the repository root. Pin the toolbar icon. `npm run package` produces extension/site ZIPs and checksums.
 
-**Share a window** requests browser consent. Never choose this viewer as its source. Browser monitor capture is disabled to avoid feedback. Audio stays at the source application; browser streams are released on stop/page closure. Protected content may remain unavailable.
+Media Lab accepts PNG/JPEG/WebP/AVIF up to50MiB/33MP and browser-decodable MP4/WebM/Ogg up to2GiB. Spatial output is capped at4096 pixels/axis and about8.3MP. PNG export is a still frame, not a video recorder. LookLock has smaller explicit bounds described in its docs. No file is uploaded or recorded automatically.
 
-## Install the extension
+Inline mode is limited to readable, unprotected, top-frame HTML5 video with native controls and supported geometry. Universal YouTube/custom-player/iframe support is not claimed. Audio remains with the original player. Restore original or the in-page stop control removes inline processing.
 
-Run `npm run build`. Open `chrome://extensions` or `edge://extensions`, enable **Developer mode**, select **Load unpacked**, and choose **`dist/extension`**, not the repository root. Pin its toolbar icon to open Media Lab, Neural Lab, LookLock, or native-player setup. The extension does not install or launch the VLC player; run the separate native executable.
-
-Inline enhancement is limited to readable, unprotected, top-frame HTML5 video with native controls and supported geometry. Universal YouTube/custom-player/iframe support is not claimed. Audio stays with the original player. **Restore original video** or the in-page stop control removes inline processing.
-
-The separate tab viewer requests optional capture permission and never displays its output inside the captured tab. Real picker/audio/protection behavior still requires platform testing. No persistent all-site host permission is requested.
-
-`npm run package` creates extension/site ZIPs and checksums. Successful browser Actions jobs attach packages, reports and screenshots. These are developer builds, not browser-store listings.
+**Share a window** requires browser consent; never select the viewer as its own source. Browser monitor capture is disabled to avoid feedback. The separate tab viewer requires optional permission and does not render its output into the captured tab. Real picker/audio/protected-content behavior remains platform-specific. No persistent all-site host permission is requested.
 
 ## Optional Windows capture companion
 
-The unchanged C++20 capture companion uses Windows Graphics Capture and Direct3D 11 spatial processing in a **separate SDR preview window**. It provides the system source picker, pause/compare/stop controls and **Ctrl+Shift+F10** emergency stop. It is separate from the new libVLC player. No native DLSS/Vulkan backend or click-through overlay is included.
+`native/windows` is a separate unchanged Windows Graphics Capture / D3D11 spatial preview application, not the new libVLC player or a DLSS backend. It provides a system source picker, pause/compare/stop and Ctrl+Shift+F10 emergency stop. It is not a click-through overlay or HDR pipeline.
 
-Requires Windows 11 x64, Visual Studio C++ build tools, Windows SDK with C++/WinRT, and CMake 3.24+. Windows CI compiles the executable/HLSL and tests the protocol; it does not validate live capture or a physical GPU. Use non-sensitive SDR content first.
+Requires Windows11x64, Visual Studio C++/WindowsSDK/C++WinRT and CMake3.24+:
 
 ```powershell
 cmake -S native/windows -B build/native -A x64
@@ -78,19 +70,17 @@ ctest --test-dir build/native -C Release --output-on-failure
 .\build\native\Release\shiny-native.exe
 ```
 
-Alternatively use the **shiny-engine-windows-unsigned-alpha** artifact from a successful Windows job. Follow local execution policy; do not disable protections globally.
-
-Register the unpacked extension's 32-character ID:
+Register the unpacked extension's32-character ID:
 
 ```powershell
 .\native\windows\install.ps1 -ExtensionId 'YOUR_EXTENSION_ID' -Executable '.\build\native\Release\shiny-native.exe'
 ```
 
-For an extracted CI package, run its `install.ps1` beside `shiny-native.exe` and omit `-Executable`. Installation writes only the user's `LocalAppData\ShinyEngine` folder and Chrome/Edge native-host entries. No elevated service, autostart task or firewall rule is created.
+The **shiny-engine-windows-unsigned-alpha** CI artifact supplies a prebuilt companion. Run its adjacent install.ps1 without `-Executable`. Installation writes only per-user LocalAppData/Chrome/Edge native-host entries; no service, autostart or firewall change. Follow local execution policy without globally disabling protections.
 
-Open spatial Media Lab **from the extension**, connect the companion, grant optional native-messaging permission and choose a source. Stop using the lab/native window or **Ctrl+Shift+F10**. Pause retains capture; Stop releases it. Closing the browser is not the stop mechanism for a separate native preview. Close the companion before running `uninstall.ps1`; remove the extension separately. Changing extension ID requires re-registration.
+Open Media Lab from the extension, connect the companion, grant optional native messaging and select a source. Stop through its controls or Ctrl+Shift+F10. Pause retains capture; Stop releases it. Closing the browser does not stop a separately running preview. Close the companion before uninstall.ps1; uninstall the extension separately. Changed extension IDs need re-registration.
 
-## Verify
+## Validation and release process
 
 ```sh
 npm run check
@@ -100,32 +90,31 @@ npm run test:browser
 npm run package
 ```
 
-CI pins Playwright 1.63.0 / Chromium 153. Unit tests cover settings, protocol, model hashes/approvals, serial worker cancellation and bundled imports. Spatial browser tests cover actual pixels, decoding, export, playback, responsive UI and MV3 loading. Neural tests exercise the locked UI/worker gate and GPU input/output stages with **synthetic residuals**, not a trained model. Check results for the exact commit; test definitions alone are not evidence of success.
+Browser CI covers strict TypeScript, settings, protocol, media lifecycles, source recipes, real graphics output/PNG exports and actual MV3 loading. Browser/native NR arithmetic tests use **synthetic residuals**, not a trained model. Native player CI compiles pinned VideoLAN/OpenDLSS/Khronos source, decodes generated original AVI/PCM, checks real filter/bypass pixels and model rejection, and runs installed playback/uninstall tests.
 
-Software graphics tests do not certify physical-GPU performance. Strict application CSP is retained. Respect managed browser policies; do not disable them to run local tests. **browser-build**, **windows-build**, and **vlc-player** gate this feature merge. The new VLC workflow compiles against pinned VideoLAN headers, tests real software media decoding and image-filter output against generated fixtures, and checks the native window. It does not certify physical VSR, HDR or complete codec coverage.
+A feature merge requires **browser-build**, **windows-build**, and **vlc-player** to pass on the exact head. Main release publication independently verifies the latest required checks on the exact revision before attaching versioned installers, portable/source archives and checksums. A successful build is not a model approval or physical-GPU benchmark. Missing parity/temporal/hardware tests are not counted as passed.
 
-See [support matrix](docs/support-matrix.md), [benchmark method](docs/benchmark-method.md), [security](docs/threat-model.md), [model provenance](docs/model-provenance.md), and [Neural Lab boundaries](docs/neural-lab.md).
+See [support matrix](docs/support-matrix.md), [benchmark method](docs/benchmark-method.md), [security](docs/threat-model.md), [model provenance](docs/model-provenance.md), and [release notes](docs/release-0.6.md). No trained-model execution, vendor equivalence, VSR/GPU speed, HDR, sound-device output, full codec coverage or sustained-session certification is implied by software CI.
 
 ## Source layout
 
 ```text
-apps/viewer             Spatial Media Lab
-apps/nr                 Isolated approval-gated Neural Lab
-apps/looklock           Still-frame creator review and source locks
-apps/player             Native player setup and build navigation
+apps/viewer             Spatial browser workbench
+apps/looklock           Source-preserving still review
+apps/nr                 Gated browser neural lab
+apps/player             Native installer/setup navigation
 apps/extension          MV3 permissions and session routing
 packages/contracts      Validated settings/native commands
-packages/gpu-web        Spatial rendering and bounded scheduling
-packages/nr             Model policy, worker and graph adapter
-packages/looklock       CPU still-frame composition, recipes and lossless PNG
-third_party/opendlss-nr  Pinned MIT source; no weights
-native/windows          Windows picker and D3D11 spatial preview
-native/vlc-player       Independent native libVLC desktop player
-tests/vlc-player        Portable policy and original media fixtures
-models                  Metadata, approvals and source hashes only
-docs                    Preserved research, status and release gates
+packages/gpu-web        Spatial renderer and frame scheduler
+packages/nr             Browser model policy and graph adapter
+packages/looklock       Still composition, recipes and PNG encoder
+third_party/opendlss-nr  Pinned MIT graph source; no model weights
+native/windows          Separate spatial capture companion
+native/vlc-player       Independent Windows libVLC player
+native/nr-worker        Native Vulkan graph/process/model policy
+installers/windows      Per-user setup and uninstall tests
+models                  Metadata, approvals and provenance only
+docs                    Research, implementation status and gates
 ```
 
-Media Lab and the neural adapter use GPU textures for their rendering paths. LookLock separately uses bounded CPU/Canvas2D processing for still-frame review; it is not a live enhancement path. Native Messaging transports controls/status only. Temporal processing and D3D/Vulkan interop remain separate work.
-
-Original application: MIT. Reference notices are preserved in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [native player notices](native/vlc-player/THIRD_PARTY_NOTICES.md). Shiny Engine is independent and not affiliated with or endorsed by NVIDIA or VideoLAN.
+Original application: MIT. Preserve [root notices](THIRD_PARTY_NOTICES.md) and [native player notices](native/vlc-player/THIRD_PARTY_NOTICES.md). Shiny Engine is independent of NVIDIA and VideoLAN. Their names identify interoperability, not endorsement.

@@ -33,7 +33,7 @@ with sync_playwright() as p:
         passed.append('actual MV3 popup opens native-player setup, not simulated native playback')
         expect(page.locator('.warning')).to_have_text('Not available')
         assert page.locator('video, canvas, script, iframe').count() == 0
-        assert page.locator('meta[http-equiv="Content-Security-Policy"]').get_attribute('content').find("script-src 'none'") >= 0
+        assert "script-src 'none'" in page.locator('meta[http-equiv="Content-Security-Policy"]').get_attribute('content')
         passed.append('DLSS unavailable state and no scripts, fake player or automatic network inference')
         for width in [320,390,768,1280]:
             page.set_viewport_size({'width':width,'height':900})
@@ -48,9 +48,9 @@ with sync_playwright() as p:
         page.get_by_text('Build from source and validation boundaries', exact=True).click()
         expect(page.get_by_text('Requires Windows x64, the Visual Studio C++ toolchain', exact=False)).to_be_visible()
         passed.append('setup anchor and keyboard-accessible build/limitations disclosure')
-        assert page.get_by_role('link',name='Get the Windows build').get_attribute('href') == 'https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/vlc-player.yml'
+        assert page.get_by_role('link',name='Get the Windows build').get_attribute('href') == 'https://github.com/Alex-Unnippillil/shiny-engine/releases/tag/v0.6.0'
         assert all(link.get_attribute('rel') == 'noopener noreferrer' for link in page.locator('a[target="_blank"]').all())
-        passed.append('build/source links are fixed destinations and isolate new tabs')
+        passed.append('versioned release/source links are fixed destinations and isolate new tabs')
         page.get_by_role('link',name='LookLock', exact=True).click()
         expect(page).to_have_url(f'chrome-extension://{extension_id}/apps/looklock/index.html')
         passed.append('navigation back to working local review workspace')

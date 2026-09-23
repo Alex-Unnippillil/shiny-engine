@@ -1,9 +1,9 @@
 {
   "name": "shiny-engine",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
-  "description": "Local-first media enhancement with a separately gated OpenDLSS-NR adapter. No proprietary models.",
+  "description": "Local media player, source-preserving review and gated native/browser OpenDLSS-NR research. No proprietary models.",
   "license": "MIT",
   "engines": { "node": ">=22" },
   "scripts": {

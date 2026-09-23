@@ -1,34 +1,30 @@
-# Implementation status — 0.5.0 native libVLC player
+# Implementation status — 0.6.0 native NR workbench / Windows installer
 
-This status document is separate from the unchanged input research plan. It does not retroactively rewrite the plan's research date, performance claims, or proposed acceptance gates.
+Separate from the unchanged original research plan. This document does not retroactively change its date, upstream measurements or proposed acceptance gates.
 
-| Plan milestone | Delivered in this repository | Still required |
+| Plan milestone | Implemented here | Still required |
 |---|---|---|
-| M0 Feasibility/provenance | Original spatial shaders, model registry, deterministic local fixture, dependency lockfile, explicit model-use gate | Physical adapter inventory, sustained hardware benchmarks, independently approved neural model |
-| M1 Capture/presentation | Local viewer, supported native-controls inline mode, explicit separate browser capture viewer, Windows picker/SDR preview source | Interactive Windows capture/resize/close/DPI/feedback validation, D3D/Vulkan interoperability |
-| M2 Browser enhancement | WebGPU and WebGL2 spatial backends, presets, comparison, local settings, bounded scheduling, PNG export and diagnostics | Cleared animation/photo models, tiled neural inference, broader tested site adapters, named-hardware budgets |
-| M3 Native control | Typed native messaging, opaque per-session IDs, per-user installer, D3D11 spatial preview, stop and emergency shortcut | Live extension-to-native integration tests on Windows, overlay window following, sustained device-loss/DPI/recovery validation |
-| M4 NR/temporal research | Pinned MIT browser graph, dedicated-worker independent-frame adapter, GPU texture/feature/composition bridge, reviewed-manifest gate and local hash validation | Approved weights, complete neural inference/parity evidence, native/Vulkan adapter, optical flow, temporal video evaluation and physical-GPU certification |
-| M5 Whole-display/hardening | Packaging/checksums, CI gates, capture-exclusion code and explicit limitations | Click-through desktop overlay, signed installer/update pipeline, full-display certification, multi-monitor validation and store publication |
+| M0 Feasibility/provenance | Original spatial shaders, deterministic fixtures, pinned source/dependencies and model-use registers | Actual GPU inventory, sustained benchmarks and independently reviewed neural model |
+| M1 Capture/presentation | Browser viewers, supported inline mode, consented capture, Windows picker/D3D11 preview | Interactive capture/DPI/device recovery, full desktop behavior and D3D/Vulkan zero-copy interoperability |
+| M2 Browser enhancement | Spatial WebGPU/WebGL2, controls, PNG export and diagnostics | Cleared restoration models, tiled inference, broader site compatibility and named-hardware budgets |
+| M3 Native control | Typed native messaging and separate capture companion, per-user setup | Live extension/capture hardware tests, overlay following and sustained recovery validation |
+| M4 NR/temporal research | Pinned browser graph and native Vulkan graph worker; separate muted VLC sampler, native model policy, bounded frame IPC, input/head composition, probes and explicit unavailable states | Reviewed weights, full trained-model execution/parity, native video quality, optical flow/history, physical-GPU performance |
+| M5 Release/hardening | Exact-commit CI, source/checksum packages, unsigned Windows player installer/uninstaller and release workflow | Code signing, whole-display certification, macOS/Linux installers, HDR, store publication and multi-monitor validation |
 
-No milestone is claimed complete merely because its source files exist. Ordinary CI does not satisfy the physical-GPU, long-session, native interop, or quality criteria in the plan.
+No milestone is complete merely because source files exist. Software CI is not a physical GPU, long-session, temporal or image-quality certification.
 
-## Version history and boundaries
+## Version history
 
-The original 0.1.0 baseline is a spatial-enhancement application, not a reproduction of the proprietary DLSS 5 network. It did not copy a reference implementation. Version 0.2.0 added transactional source loading, comparison drag/keyboard controls, single-preview video transport, remembered presets, explicit export views, fullscreen/help, and cancellable diagnostics.
+**0.1.0:** original spatial-enhancement baseline, not a reproduction of NVIDIA's network. **0.2.0:** transactional source loading, comparison controls, single-preview transport, preferences, explicit export views, fullscreen/help and cancellable diagnostics.
 
-Version 0.3.0 adds pinned MIT OpenDLSS-NR browser source as a submodule; notices and loader modifications are explicit. The default build cannot activate neural inference with its empty reviewed-model register. Original media playback and model metadata inspection work independently. CI tests the GPU frame wrapper with synthetic residuals, not a trained network or vendor parity. This is a separately gated browser research path and does not complete M4. See `neural-lab.md`.
+**0.3.0:** pinned MIT OpenDLSS browser submodule and independent-frame worker/graph bridge. Empty reviewed-model register keeps trained inference locked. Tests use synthetic residuals, not trained weights or vendor captures. See `neural-lab.md`.
 
-The Windows capture companion code is unchanged. No NVIDIA runtime, weights, HDR or click-through desktop overlay is included. Keep measurements, source revision, hardware and limitations together in each evidence report.
+**0.4.0 — LookLock:** external-output still review, local source/video-frame selection, exact decoded-pixel protected regions, outside feather, alpha-aware composition, lossless PNG, review boards, masks, hash-bound recipes and reports. Synthetic demonstration is not neural output. No model approval is relaxed. See `looklock.md`.
 
-## 0.4.0 — LookLock
+**0.5.0 — libVLC player:** independent Windows x64 player using VideoLAN C APIs and separately installed VLC3.0.24+. Playback/queue/transport/tracks/subtitles/equalizer/filters, driver-super-resolution request and imported-video comparison. Full VLC opens separately for advanced functionality. This version had no native neural adapter; RTX VSR requests were not model inference or verified hardware execution.
 
-A working still-frame creator workflow for external DLSS/other processed outputs: original/video-frame selection, same-frame confirmation, pixel-exact source locks, outside feather, raw change map, alpha-aware composition, independent lossless PNG output, three-panel review board, protection mask, source-bound recipes and privacy-conscious numerical reports. The synthetic demonstration is not neural output. Browser and extension entry points are included without new permissions or dependencies.
+**0.6.0 — native NR and installable release:** actual pinned OpenDLSS-NR Vulkan graph plus GLSL/PTX kernels compiled into a fixed-path private worker. Bounded sequence-checked frame requests and kill-on-close process lifetime connect to a separate silent VLC sampler/workbench. Native Vulkan probing, local manifest fingerprinting and original sampled playback work without a model. **The reviewed native-model register is empty: trained inference is not activated, and no numerical parity, temporal stability or GPU speed is certified.** Browser approvals and original research remain unchanged.
 
-This does not complete the NR/model-rights, native, temporal, or physical-GPU milestones above. No model register is relaxed and no inference is activated. See `looklock.md` for the specific guarantees and limitations.
+The player adds cinema view, bookmarks, go-to-time, always-on-top, queue reordering, active audio-device selection and media information. Setup supports per-user installation, shortcuts, managed uninstall and optional official VLC retrieval with a pinned SHA-256. Existing system VLC is not overwritten. Existing VLC or an independently obtained matching cache supports offline installation. Versioned installers, portable and source packages publish only after required exact-main checks. No macOS/Linux installer, code signing or complete VLC GUI parity is supplied.
 
-## 0.5.0 — native libVLC player
-
-Independent Windows x64 player using VideoLAN public C APIs at pinned source `6de05adcbaf2e8b85fe86aad4169393098628119` and a separately installed libVLC 3.0.24+ runtime. Real local/stream playback, queue and transport controls, tracks/subtitles, timing, equalizer, VLC image adjustments, optional driver-super-resolution request, external-output comparison and snapshots. Full VLC opens a separate installed VLC interface for features not duplicated here. The extension provides setup and build navigation; it does not install or launch native code.
-
-The unchanged native capture companion and browser neural gates are not the new player. Native DLSS 5 inference remains unimplemented: no model, runtime, native NR texture adapter or temporal pipeline is added. Driver VSR is distinct and hardware execution is unverified. Real software decoding/filter tests do not certify VSR, HDR, sound-device output or full VLC parity. See `../native/vlc-player/README.md` and the VLC CI artifacts.
+The Windows capture companion is unchanged. No proprietary NVIDIA runtime, model weights, HDR pipeline or click-through desktop overlay is added. Retain exact source revision, test scope, hardware and remaining limitations with each evidence report.

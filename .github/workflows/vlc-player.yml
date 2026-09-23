@@ -62,7 +62,6 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Force artifacts/vlc | Out-Null
           Invoke-WebRequest 'https://download.videolan.org/pub/videolan/vlc/3.0.24/win64/vlc-3.0.24-win64.zip' -OutFile .deps/vlc.zip
           if ((Get-FileHash .deps/vlc.zip -Algorithm SHA256).Hash.ToLower() -ne 'fcf30850371ad10c9373cc4f0f4501e7dee49e3e9ae9f20c72fb2661a1ca6323') { throw 'Official VLC archive hash mismatch' }
           Expand-Archive .deps/vlc.zip .deps/runtime
@@ -91,6 +90,11 @@ jobs:
           if ($proc.ExitCode -ne 0) { throw 'Native UI smoke test failed' }
           $ui = Get-Content artifacts/vlc/ui-playback.json -Raw | ConvertFrom-Json
           if ($ui.decodedVideoFrames -lt 1 -or $ui.width -lt 1) { throw 'Native UI did not decode video' }
+      - name: Exercise cinema, bookmarks, native workbench and teardown
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./tests/vlc-player/ui.ps1 -Executable "$PWD/build/vlc/Release/ShinyVlcPlayer.exe" -Runtime "$PWD/.deps/runtime/vlc-3.0.24" -Fixture "$PWD/.deps/fixtures/moving-original.avi" -Output "$PWD/artifacts/vlc"
       - name: Package player and source notices; compile Windows installer
         shell: pwsh
         run: |
