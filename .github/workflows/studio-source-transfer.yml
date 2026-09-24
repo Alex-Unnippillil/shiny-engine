@@ -6,19 +6,20 @@ permissions:
   contents: write
 jobs:
   transfer:
-    if: github.event.head_commit.message == 'chore: transfer reviewed studio source on feature branch'
+    if: >-
+      github.event.head_commit.message == 'chore: transfer reviewed studio source on feature branch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          fetch-depth: 2
+          fetch-depth: 3
       - name: Apply exact local source without modifying workflows or main
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_REF" = 'refs/heads/feat/video-studio-polish'
-          test "$(git rev-parse HEAD^)" = '0308ca5d84844987279a5cdbd52f0cab2672197f'
+          test "$(git rev-parse HEAD~2)" = '0308ca5d84844987279a5cdbd52f0cab2672197f'
           python - <<'PY'
           import base64, hashlib, json, lzma, pathlib
           folder = pathlib.Path('source-transport')
