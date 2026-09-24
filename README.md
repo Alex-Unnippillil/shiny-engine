@@ -16,8 +16,16 @@
 
 > **0.10.0 · unsigned Windows x64 prerelease.** Real libVLC playback, local package management and conventional spatial comparisons are implemented. NVIDIA DLSS activation, trained-model quality, physical-GPU speed, HDR and neural audio synchronization are **not certified**. No NVIDIA DLLs or model weights are bundled. Shiny is independent of VideoLAN and NVIDIA.
 
+![Shiny Player playing a Cosmic Cliffs still-image demo, with the blue starscape and amber nebula in the real Windows interface](docs/media/readme-cosmic-cliffs.png)
+*Actual Shiny Player 0.10.0 capture playing a still-image demo of Webb's Cosmic Cliffs. Image credit: NASA, ESA, CSA, STScI. [Image source and capture details](docs/media/README.md). Sample media only—not a DLSS demonstration or an endorsement.*
+
+<details>
+<summary>Original release-test screenshot</summary>
+
 ![Main playback workspace with an in-memory queue](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.0/player-workspace.png)
 *Actual Windows application capture from the release test run. The moving color pattern is our generated decoding fixture—not photographic enhancement evidence or a mockup.*
+
+</details>
 
 ## The workspace
 
