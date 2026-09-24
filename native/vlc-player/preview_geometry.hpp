@@ -22,6 +22,16 @@ inline std::array<unsigned,2> decodeSize(unsigned w,unsigned h,unsigned edge=960
     if(x<33||y<33)throw std::runtime_error("preview-aspect-ratio-too-extreme");
     return {x,y};
 }
+// Preserve the established neural-workbench rounding independently of the
+// managed renderer's floor-based pixel budget (e.g. 515 x 33 -> 512 x 33).
+inline std::array<unsigned,2> sourceSize(unsigned w,unsigned h,unsigned edge=512){
+    if(edge!=512)return decodeSize(w,h,edge);
+    if(!w||!h||w>16384||h>16384)throw std::runtime_error("invalid-preview-dimensions");
+    const double scale=std::min(1.,512./std::max(w,h));
+    auto x=static_cast<unsigned>(std::lround(w*scale)),y=static_cast<unsigned>(std::lround(h*scale));
+    if(x<33||y<33)throw std::runtime_error("preview-aspect-ratio-too-extreme");
+    return {x,y};
+}
 inline float wipe(float value){return std::isfinite(value)?std::clamp(value,0.f,1.f):.5f;}
 // A bounded rolling latency window; values are worker round-trip, never GPU timing.
 class Latency {

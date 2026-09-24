@@ -82,8 +82,7 @@ struct NrSource::Pixels {
 };
 NrSource::NrSource(std::shared_ptr<VlcApi> api,const Item& item,uint32_t width,uint32_t height,int64_t at,unsigned maxEdge){
  if(!width||!height||width>16384||height>16384)throw std::runtime_error("Invalid preview source dimensions.");
- auto size=preview::decodeSize(width,height,maxEdge);
- if(maxEdge==512){auto ratio=std::min(1.,512./std::max(width,height));size={static_cast<uint32_t>(std::lround(width*ratio)),static_cast<uint32_t>(std::lround(height*ratio))};}
+ auto size=preview::sourceSize(width,height,maxEdge);
  auto w=size[0],h=size[1];
  if(w<33||h<33)throw std::runtime_error("Video aspect ratio is too extreme for the native neural preview.");
  pixels=std::make_unique<Pixels>(w,h);engine=std::make_unique<Engine>(api,nullptr,true,true);api->SetCallbacks(engine->player,Pixels::lock,Pixels::unlock,Pixels::display,pixels.get());api->SetFormat(engine->player,"RV32",w,h,pixels->pitch);engine->open(item);

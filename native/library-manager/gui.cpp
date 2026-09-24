@@ -112,7 +112,7 @@ start(Refresh,{});
   auto name=row.version=="1.2.0"?"Adaptive detail":row.id=="shiny-spatial"?"Spatial reference":row.id;
   theme.text(d.hDC,wide(name+"  "+row.version),title,font,theme.ink);
   RECT meta{title.left,title.bottom+px(2),title.right,box.bottom-px(4)};
-  theme.text(d.hDC,wide(row.state+"  ·  "+(row.compatible?"Build verified":"Quarantined")),meta,theme.small,selected?theme.accent:theme.muted);
+  theme.text(d.hDC,wide(row.state+"  ·  "+(row.compatible?"Build verified":"Quarantined")),meta,theme.captionFont,selected?theme.accent:theme.muted);
   if(d.itemState&ODS_FOCUS){RECT focus=box;InflateRect(&focus,-px(2),-px(2));DrawFocusRect(d.hDC,&focus);}
  }
  std::string selectedId(){auto n=SendMessageW(GetDlgItem(hwnd,List),LB_GETCURSEL,0,0);

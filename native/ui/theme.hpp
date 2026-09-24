@@ -25,13 +25,13 @@ struct Theme {
     UINT dpi=96;
     COLORREF bg{}, surface{}, ink{}, muted{}, accent{}, line{};
     HBRUSH background=nullptr, card=nullptr;
-    HFONT body=nullptr, heading=nullptr, small=nullptr;
+    HFONT body=nullptr, heading=nullptr, captionFont=nullptr;
     bool contrast=false;
     ~Theme(){clear();}
     Theme()=default;
     Theme(const Theme&)=delete; Theme& operator=(const Theme&)=delete;
     int px(int x) const {return MulDiv(x, static_cast<int>(dpi), 96);}
-    void clear(){for(auto f:{body,heading,small})if(f)DeleteObject(f); body=heading=small=nullptr;
+    void clear(){for(auto f:{body,heading,captionFont})if(f)DeleteObject(f); body=heading=captionFont=nullptr;
         if(background)DeleteObject(background);if(card)DeleteObject(card);background=card=nullptr;}
     HFONT font(int size,int weight)const{return CreateFontW(-px(size),0,0,0,weight,FALSE,FALSE,FALSE,
         DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");}
@@ -45,7 +45,7 @@ struct Theme {
         accent=contrast?GetSysColor(COLOR_HIGHLIGHT):RGB(110,221,198);
         line=contrast?ink:RGB(54,68,89);
         background=CreateSolidBrush(bg);card=CreateSolidBrush(surface);
-        body=font(14,FW_NORMAL);heading=font(25,FW_SEMIBOLD);small=font(12,FW_NORMAL);
+        body=font(14,FW_NORMAL);heading=font(25,FW_SEMIBOLD);captionFont=font(12,FW_NORMAL);
         EnumChildWindows(window,[](HWND c,LPARAM p)->BOOL{
             SendMessageW(c,WM_SETFONT,reinterpret_cast<WPARAM>(reinterpret_cast<Theme*>(p)->body),TRUE);return TRUE;
         },reinterpret_cast<LPARAM>(this));
