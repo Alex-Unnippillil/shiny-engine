@@ -3,6 +3,7 @@
 #include <iostream>
 #include <limits>
 #include <source_location>
+#include <string>
 using namespace shiny::preview;
 void check(bool b,const std::source_location loc=std::source_location::current()){if(!b)throw std::runtime_error("preview check at line "+std::to_string(loc.line()));}
 int main(){try{
