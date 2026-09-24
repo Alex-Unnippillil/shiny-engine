@@ -87,8 +87,8 @@ std::string digest(std::string_view s){return digest(std::span(reinterpret_cast<
 void validateLocal(const fs::path& p){
  if(!p.is_absolute()||p.empty()||pathText(p).size()>30000)throw std::runtime_error("absolute-local-path-required");
 #ifdef _WIN32
- const auto s=p.wstring();
- if(s.size()<3||s[1]!=L':'||!((s[0]>=L'A'&&s[0]<=L'Z')||(s[0]>=L'a'&&s[0]<=L'z'))||s.find(L':',2)!=s.npos||(s[2]!=L'\\'&&s[2]!=L'/'))throw std::runtime_error("absolute-local-drive-path-required");
+ const auto nativePath=p.wstring();
+ if(nativePath.size()<3||nativePath[1]!=L':'||!((nativePath[0]>=L'A'&&nativePath[0]<=L'Z')||(nativePath[0]>=L'a'&&nativePath[0]<=L'z'))||nativePath.find(L':',2)!=nativePath.npos||(nativePath[2]!=L'\\'&&nativePath[2]!=L'/'))throw std::runtime_error("absolute-local-drive-path-required");
  if(GetDriveTypeW(p.root_path().c_str())!=DRIVE_FIXED)throw std::runtime_error("fixed-local-drive-required");
 #endif
  for(const auto& part:p.relative_path()){

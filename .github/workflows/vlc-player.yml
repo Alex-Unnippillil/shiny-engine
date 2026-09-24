@@ -98,6 +98,11 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           & ./tests/vlc-player/ui.ps1 -Executable "$PWD/build/vlc/Release/ShinyVlcPlayer.exe" -Runtime "$PWD/.deps/runtime/vlc-3.0.24" -Fixture "$PWD/.deps/fixtures/moving-original.avi" -Output "$PWD/artifacts/vlc"
+      - name: Exercise managed preview UI, version leases and original fallback
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./tests/vlc-player/managed-ui.ps1 -Executable "$PWD/build/vlc/Release/ShinyVlcPlayer.exe" -Runtime "$PWD/.deps/runtime/vlc-3.0.24" -Fixture "$PWD/.deps/fixtures/moving-original.avi" -Output "$PWD/artifacts/vlc"
       - name: Package player and source notices; compile Windows installer
         shell: pwsh
         run: |
