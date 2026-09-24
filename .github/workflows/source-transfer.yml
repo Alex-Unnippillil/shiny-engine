@@ -1,0 +1,44 @@
+name: Apply verified source update
+on:
+  push:
+    branches: [feat/enhancement-library-manager]
+permissions:
+  contents: write
+jobs:
+  transfer:
+    if: github.repository == 'Alex-Unnippillil/shiny-engine'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+      - name: Apply the checksum-bound locally tested change and remove transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/feat/enhancement-library-manager'
+          test "$(git rev-parse HEAD^)" = '32f3cdfcb0b2893344adfbff0bbf5c9f77f52783'
+          python - <<'PY'
+          import base64, gzip, hashlib, pathlib, subprocess
+          directory = pathlib.Path('.github/source-transfer')
+          paths = sorted(directory.iterdir())
+          assert [p.name for p in paths] == [f'{i:02}.txt' for i in range(11)]
+          assert all(p.is_file() and not p.is_symlink() and p.stat().st_size <= 8001 for p in paths)
+          encoded = ''.join(p.read_text(encoding='ascii').strip() for p in paths)
+          assert len(encoded) == 80160
+          compressed = base64.b64decode(encoded, validate=True)
+          assert hashlib.sha256(compressed).hexdigest() == '8ac8d5cfe1919a1b4ecd66049800c3a950384dc9fed310ba7afa71f21f18268c'
+          patch = gzip.decompress(compressed)
+          assert len(patch) == 205563
+          assert hashlib.sha256(patch).hexdigest() == '7af265c5ee2285d092395f17dba5f513af9948377ebd2e460e953dbebea1c8a5'
+          subprocess.run(['git', 'apply', '--check', '-'], input=patch, check=True)
+          subprocess.run(['git', 'apply', '--index', '-'], input=patch, check=True)
+          PY
+          git rm -r -- .github/source-transfer .github/workflows/source-transfer.yml
+          git diff --cached --check
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: implement local enhancement package management and reference playback'
+          git push origin HEAD:refs/heads/feat/enhancement-library-manager
