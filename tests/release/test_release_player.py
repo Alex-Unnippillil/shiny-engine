@@ -133,6 +133,8 @@ class ReleasePolicyTests(unittest.TestCase):
             if version == "0.9.0":
                 content["library-bundles/1.2.0/shiny_spatial.dll"] = b"MZadaptive"
                 studio = dict(versionsProcessed=3, direct2D=True, compatibilityRenderer=True, comparisonModes=4)
+                installed = dict(managedLibraryVersions=3, managedWorkerProbe=True, uninstalled=True)
+                (folder / "installer-report.json").write_text(json.dumps(installed))
                 (folder / "ui-managed-report.json").write_text(json.dumps(studio))
                 for name in ("player-video-studio.png", "player-library-manager.png"):
                     (folder / name).write_bytes(b"\x89PNG\r\n\x1a\nfixture")
@@ -155,6 +157,10 @@ class ReleasePolicyTests(unittest.TestCase):
                     (folder / "ui-managed-report.json").write_text(json.dumps({**studio, **mutation})); write_sums()
                     with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)
                 (folder / "ui-managed-report.json").write_text(json.dumps(studio)); write_sums()
+                for mutation in ({"managedLibraryVersions": 2}, {"managedWorkerProbe": False}, {"uninstalled": False}):
+                    (folder / "installer-report.json").write_text(json.dumps({**installed, **mutation})); write_sums()
+                    with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)
+                (folder / "installer-report.json").write_text(json.dumps(installed)); write_sums()
             with ZipFile(portable, "a") as z: z.writestr("unlisted.exe", b"MZunexpected")
             write_sums()
             with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)

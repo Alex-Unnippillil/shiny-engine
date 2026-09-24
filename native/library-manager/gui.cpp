@@ -109,10 +109,10 @@ start(Refresh,{});
   bool selected=(d.itemState&ODS_SELECTED)!=0;
   theme.rounded(d.hDC,box,theme.surface,selected?theme.accent:theme.line,12);
   RECT title{box.left+px(12),box.top+px(7),box.right-px(12),box.top+px(28)};
-  auto name=row.version=="1.2.0"?"Adaptive detail":row.id=="shiny-spatial"?"Spatial reference":row.id;
+  auto name=row.id=="shiny-spatial"?(row.version=="1.2.0"?"Adaptive detail":"Spatial reference"):row.id;
   theme.text(d.hDC,wide(name+"  "+row.version),title,font,theme.ink);
   RECT meta{title.left,title.bottom+px(2),title.right,box.bottom-px(4)};
-  theme.text(d.hDC,wide(row.state+"  ·  "+(row.compatible?"Build verified":"Quarantined")),meta,theme.captionFont,selected?theme.accent:theme.muted);
+  theme.text(d.hDC,wide(row.state+"  ·  "+(row.compatible?"Build catalog match":"Quarantined")),meta,theme.captionFont,selected?theme.accent:theme.muted);
   if(d.itemState&ODS_FOCUS){RECT focus=box;InflateRect(&focus,-px(2),-px(2));DrawFocusRect(d.hDC,&focus);}
  }
  std::string selectedId(){auto n=SendMessageW(GetDlgItem(hwnd,List),LB_GETCURSEL,0,0);
@@ -152,7 +152,7 @@ enabled();
  void details(){
   auto id=selectedId();
 std::string text="Selection applies only when a NEW managed preview starts.\r\nExisting previews keep their leased version until closed.\r\n\r\n";
-  for(auto& row:rows)if(row.digest==id){text+="Package: "+row.id+"\r\nVersion: "+row.version+"\r\nState: "+row.state+"\r\nDigest: "+row.digest+"\r\n\r\n"+(row.compatible?"Exact-build spatial reference package. Stage, then select. Not a neural or DLSS backend.":"Blocked: "+row.blocked+". Import never grants execution permission.")+"\r\n\r\n";
+  for(auto& row:rows)if(row.digest==id){text+="Package: "+row.id+"\r\nVersion: "+row.version+"\r\nState: "+row.state+"\r\nDigest: "+row.digest+"\r\n\r\n"+(row.compatible?"Manifest matches this build catalog. Verify bytes before staging. Not a neural or DLSS backend.":"Blocked: "+row.blocked+". Import never grants execution permission.")+"\r\n\r\n";
 }
   text+="WORKFLOW\r\nImport → Verify → Stage → Select next preview\r\n\r\nThe adaptive detail package (1.2.0) limits halos and noise amplification. All three are CPU spatial filters, not DLSS.\r\n\r\nTRUST BOUNDARY\r\nThis unsigned build permits only its compiled first-party hashes. NVIDIA / Streamline candidates remain quarantined.\r\n\r\nExport report saves the complete machine-readable catalog. No full local paths or media names are included.";
   SetWindowTextW(GetDlgItem(hwnd,Details),wide(text).c_str());

@@ -68,7 +68,9 @@ class Presenter {
                 float x=a[0].w*split;target->DrawLine(D2D1::Point2F(x,0),D2D1::Point2F(x,a[0].h),brush.Get(),2.f);}
             else draw(mode==2?afterBitmap.Get():beforeBitmap.Get(),a[0],a[0]);
         }
-        auto hr=target->EndDraw();if(FAILED(hr)){release();return false;}lastDirect=true;return true;
+        if(GetFocus()==hwnd){RECT r{};GetClientRect(hwnd,&r);
+            target->DrawRectangle(D2D1::RectF(1,1,static_cast<float>(r.right-1),static_cast<float>(r.bottom-1)),brush.Get(),2.f);}
+        auto hr=target->EndDraw();if(FAILED(hr)){release();return false;}lastDirect=beforeBitmap&&afterBitmap;return true;
     }
     void fallback(HDC dc){
         Gdiplus::Graphics g(dc);g.Clear(Gdiplus::Color(255,9,12,18));
@@ -83,6 +85,8 @@ class Presenter {
         else if(mode==1){draw(before,a[0],a[0]);auto clip=a[0];clip.x+=clip.w*split;clip.w*=1.f-split;draw(after,a[0],clip);
             Gdiplus::Pen pen(Gdiplus::Color(255,110,221,198),2);g.DrawLine(&pen,a[0].w*split,0.f,a[0].w*split,a[0].h);}
         else draw(mode==2?after:before,a[0],a[0]);
+        if(GetFocus()==hwnd){RECT r{};GetClientRect(hwnd,&r);Gdiplus::Pen pen(Gdiplus::Color(255,110,221,198),2);
+            g.DrawRectangle(&pen,1,1,static_cast<INT>(r.right-2),static_cast<INT>(r.bottom-2));}
     }
     void announce(){
         auto text=mode==1?L"Wipe comparison: "+std::to_wstring(static_cast<int>(std::lround(split*100)))+L"% source; Left/Right adjust, Home/End endpoints":
@@ -95,6 +99,7 @@ class Presenter {
         if(!self)return DefWindowProcW(h,m,w,l);
         switch(m){
         case WM_ERASEBKGND:return 1;
+        case WM_SETFOCUS:case WM_KILLFOCUS:InvalidateRect(h,nullptr,FALSE);return 0;
         case WM_SIZE:self->release();InvalidateRect(h,nullptr,FALSE);return 0;
         case WM_PAINT:{PAINTSTRUCT ps{};HDC dc=BeginPaint(h,&ps);if(!self->direct()){self->lastDirect=false;self->fallback(dc);}EndPaint(h,&ps);return 0;}
         // PrintWindow requests an off-screen compatible paint; it does not certify a GPU.

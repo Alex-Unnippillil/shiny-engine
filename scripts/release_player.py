@@ -170,6 +170,9 @@ def verify_bundle(folder: Path, version: str, sha: str, run: dict, repository: s
         require(studio.get("versionsProcessed") == 3 and studio.get("direct2D") is True
                 and studio.get("compatibilityRenderer") is True and studio.get("comparisonModes") == 4,
                 "Video studio modes or presentation fallback unverified")
+        installed = json.loads((folder / "installer-report.json").read_text(encoding="utf-8-sig"))
+        require(installed.get("managedLibraryVersions") == 3 and installed.get("managedWorkerProbe") is True
+                and installed.get("uninstalled") is True, "All three installed backends and uninstall must be verified")
     return {**sums, "SHA256SUMS.txt": digest(folder / "SHA256SUMS.txt")}
 
 
