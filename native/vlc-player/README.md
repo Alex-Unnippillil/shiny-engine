@@ -1,3 +1,7 @@
+# Main workspace 0.10
+
+Quick actions (Ctrl+K), a title-filtered Queue view and a separate Adjustments view are now available. Read [the main workspace guide](../../docs/workspace-guide.md) and the [repository README](../../README.md) for screenshots, diagrams, stack and installation. In the installed package, `workspace-guide.md` is alongside this file.
+
 # Shiny Player 0.9.0 — Windows x64
 
 A local VideoLAN libVLC player with an opt-in OpenDLSS-NR research studio. The player works independently of any model. Neural experiments use local data you are authorized to use; they are not certified NVIDIA DLSS output.

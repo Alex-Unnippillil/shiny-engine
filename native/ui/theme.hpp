@@ -53,7 +53,7 @@ struct Theme {
         DWORD corners=2;DwmSetWindowAttribute(window,33,&corners,sizeof(corners));
         InvalidateRect(window,nullptr,TRUE);
     }
-    void text(HDC dc,std::wstring_view value,RECT r,HFONT f,COLORREF color,UINT flags=DT_LEFT|DT_SINGLELINE|DT_END_ELLIPSIS)const{
+    void text(HDC dc,std::wstring_view value,RECT r,HFONT f,COLORREF color,UINT flags=DT_LEFT|DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX)const{
         auto previous=SelectObject(dc,f);SetBkMode(dc,TRANSPARENT);SetTextColor(dc,color);
         DrawTextW(dc,value.data(),static_cast<int>(value.size()),&r,flags);SelectObject(dc,previous);
     }

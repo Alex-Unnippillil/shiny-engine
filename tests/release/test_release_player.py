@@ -107,7 +107,7 @@ class ReleasePolicyTests(unittest.TestCase):
                 with self.assertRaises(r.ReleaseError):r.checksums(folder)
 
     def test_complete_bundle_provenance_and_portable_contents(self):
-        for version in ("0.8.0", "0.9.0"):
+        for version in ("0.8.0", "0.9.0", "0.10.0"):
             self.complete_bundle(version)
 
     def complete_bundle(self, version):
@@ -124,19 +124,24 @@ class ReleasePolicyTests(unittest.TestCase):
             info = dict(schema=1, version=version, source_sha=SHA, repository=REPO,
                         workflow_run_id=run["id"], workflow_run_attempt=run["run_attempt"])
             (folder / "build-info.json").write_text(json.dumps(info))
-            (folder / "managed-playback-report.json").write_text(json.dumps(dict(versionsProcessed=3 if version=="0.9.0" else 2, originalPlaybackPreserved=True, rollback=True, dlss=False)))
+            (folder / "managed-playback-report.json").write_text(json.dumps(dict(versionsProcessed=3 if version!="0.8.0" else 2, originalPlaybackPreserved=True, rollback=True, dlss=False)))
             portable = folder / f"ShinyPlayer-{version}-Windows-x64-Portable.zip"
             content = {"ShinyVlcPlayer.exe": b"MZplayer", "nr/ShinyNrWorker.exe": b"MZworker"}
             content.update({"ShinyLibraryManager.exe": b"MZmanager", "ShinyLibraryManagerCli.exe": b"MZcli",
                             "ShinyEnhancementWorker.exe": b"MZworker", "library-bundles/1.0.0/shiny_spatial.dll": b"MZreference1",
                             "library-bundles/1.1.0/shiny_spatial.dll": b"MZreference2"})
-            if version == "0.9.0":
+            if version != "0.8.0":
                 content["library-bundles/1.2.0/shiny_spatial.dll"] = b"MZadaptive"
                 studio = dict(versionsProcessed=3, direct2D=True, compatibilityRenderer=True, comparisonModes=4)
                 installed = dict(managedLibraryVersions=3, managedWorkerProbe=True, uninstalled=True)
                 (folder / "installer-report.json").write_text(json.dumps(installed))
                 (folder / "ui-managed-report.json").write_text(json.dumps(studio))
                 for name in ("player-video-studio.png", "player-library-manager.png"):
+                    (folder / name).write_bytes(b"\x89PNG\r\n\x1a\nfixture")
+            if version == "0.10.0":
+                workspace = dict(schema=1, passed=[f"actual assertion {i}" for i in range(8)])
+                (folder / "ui-workspace-report.json").write_text(json.dumps(workspace))
+                for name in ("player-welcome.png", "player-workspace.png", "player-adjustments.png", "player-quick-actions.png", "player-workspace-compact.png"):
                     (folder / name).write_bytes(b"\x89PNG\r\n\x1a\nfixture")
             inner = "".join(hashlib.sha256(data).hexdigest()+"  "+name+"\n" for name, data in content.items())
             with ZipFile(portable, "w") as z:
@@ -152,7 +157,7 @@ class ReleasePolicyTests(unittest.TestCase):
                 (folder / "build-info.json").write_text(json.dumps({**info, **patch})); write_sums()
                 with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)
             (folder / "build-info.json").write_text(json.dumps(info)); write_sums()
-            if version == "0.9.0":
+            if version != "0.8.0":
                 for mutation in ({"direct2D": False}, {"compatibilityRenderer": False}, {"versionsProcessed": 2}, {"comparisonModes": 3}):
                     (folder / "ui-managed-report.json").write_text(json.dumps({**studio, **mutation})); write_sums()
                     with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)
@@ -161,6 +166,11 @@ class ReleasePolicyTests(unittest.TestCase):
                     (folder / "installer-report.json").write_text(json.dumps({**installed, **mutation})); write_sums()
                     with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)
                 (folder / "installer-report.json").write_text(json.dumps(installed)); write_sums()
+            if version == "0.10.0":
+                for broken in ([], ["too few"], [0]*8):
+                    (folder / "ui-workspace-report.json").write_text(json.dumps(dict(schema=1, passed=broken))); write_sums()
+                    with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)
+                (folder / "ui-workspace-report.json").write_text(json.dumps(workspace)); write_sums()
             with ZipFile(portable, "a") as z: z.writestr("unlisted.exe", b"MZunexpected")
             write_sums()
             with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)

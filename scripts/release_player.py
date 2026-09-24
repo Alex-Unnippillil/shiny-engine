@@ -132,6 +132,13 @@ def verify_bundle(folder: Path, version: str, sha: str, run: dict, repository: s
     }
     if tuple(map(int, version.split('.'))) >= (0, 8, 0):
         mandatory.add("managed-playback-report.json")
+    if tuple(map(int, version.split('.'))) >= (0, 10, 0):
+        mandatory.update({"ui-workspace-report.json", "player-welcome.png", "player-workspace.png",
+                          "player-adjustments.png", "player-quick-actions.png", "player-workspace-compact.png"})
+        workspace = json.loads((folder / "ui-workspace-report.json").read_text(encoding="utf-8-sig"))
+        require(workspace.get("schema") == 1 and isinstance(workspace.get("passed"), list)
+                and len(workspace["passed"]) >= 8 and all(isinstance(item, str) and item for item in workspace["passed"]),
+                "Main workspace UI evidence incomplete")
     require(mandatory <= sums.keys(), "Release bundle lacks required binaries or evidence")
     payloads = {p.name for p in folder.iterdir() if p.is_file() and p.suffix in {".exe", ".zip", ".png", ".json"}}
     require(payloads == sums.keys(), "All release payloads must be checksummed; no unexpected paths")

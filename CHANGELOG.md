@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0 — main workspace and documentation
+
+- Unified the main player with the native studio theme, including system high-contrast colors, a welcome screen, status badge, hover/focus controls and themed sliders.
+- Added an allowlisted Ctrl+K quick-action picker, multiword title filtering, queue cards and a separate adjustments view. Filtered actions resolve to the original queue index; plain queue navigation no longer seeks or starts playback.
+- Added Windows workspace, cancellation, filter/removal and focus-recovery scenarios, plus portable filter/index/privacy tests.
+- Rebuilt the README with actual release screenshots, architecture and package-lifecycle diagrams, component stack, setup and troubleshooting.
+- Preserved original playback, package/model approval and independent SDR processing. Unsigned prerelease; no new DLSS, GPU, HDR or audio-sync claim.
+
+
 ## 0.9.0 — Video studio and adaptive detail
 
 - Polished native Libraries UI, readable package cards, focus/hover states and system high-contrast colors.
