@@ -1,0 +1,56 @@
+name: Capture README sample
+on:
+  push:
+    branches: ['docs/readme-cosmic-cliffs']
+permissions:
+  contents: write
+jobs:
+  capture:
+    if: >-
+      github.event.head_commit.message == 'docs: capture a real player preview with Cosmic Cliffs'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Capture released player with attributed sample media
+        shell: pwsh
+        run: |
+          & ./docs/media/capture-readme.ps1 -Work "$env:RUNNER_TEMP/readme-cosmic" -Output "$PWD/docs/media"
+      - name: Update only the README presentation and preserve release evidence
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('README.md')
+          text = p.read_text(encoding='utf-8')
+          old = '![Main playback workspace with an in-memory queue](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.0/player-workspace.png)\n*Actual Windows application capture from the release test run. The moving color pattern is our generated decoding fixture—not photographic enhancement evidence or a mockup.*'
+          assert text.count(old) == 1
+          new = '''![Shiny Player playing a Cosmic Cliffs still-image demo, with the blue starscape and amber nebula in the real Windows interface](docs/media/readme-cosmic-cliffs.png)
+          *Actual Shiny Player 0.10.0 capture playing a still-image demo of Webb's Cosmic Cliffs. Image credit: NASA, ESA, CSA, STScI. [Image source and capture details](docs/media/README.md). Sample media only—not a DLSS demonstration or an endorsement.*
+
+          <details>
+          <summary>Original release-test screenshot</summary>
+
+          ''' + old + '''
+
+          </details>'''
+          p.write_text(text.replace(old,new),encoding='utf-8')
+      - name: Commit documentation artifacts on the feature branch only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GITHUB_REF -ne 'refs/heads/docs/readme-cosmic-cliffs') { throw 'Wrong destination branch' }
+          git add -- README.md docs/media/readme-cosmic-cliffs.png docs/media/readme-cosmic-cliffs.json
+          git diff --cached --check
+          if ($LASTEXITCODE) { throw 'Documentation whitespace validation failed' }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs: replace README test-pattern hero with real Cosmic Cliffs playback'
+          if ($LASTEXITCODE) { throw 'Documentation commit failed' }
+          git push origin HEAD:refs/heads/docs/readme-cosmic-cliffs
+          if ($LASTEXITCODE) { throw 'Feature branch advanced; no force push permitted' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: README-Cosmic-Cliffs
+          path: docs/media/
+          if-no-files-found: error
