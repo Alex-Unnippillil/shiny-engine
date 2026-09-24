@@ -15,7 +15,7 @@ The 2000 × 1158 source is resized to 1280 × 742 with bicubic interpolation, sa
 
 ## Capture provenance
 
-`readme-cosmic-cliffs.json` records the exact released-player source commit, verified package digest, source image URL/digest, screenshot digest and native decoder diagnostics. The unmodified application's `--ui-smoke` path captures its Windows client area. Window size is set to 1440 × 900 before capture; Windows borders are not included. The captured pixels are not edited afterward.
+`readme-cosmic-cliffs.json` records the exact released-player source commit, verified package digest, source image URL/digest, screenshot digest and native decoder diagnostics. The unmodified application's `--ui-smoke` path captures its Windows client area. The requested outer window size is 1440 × 900; Windows can constrain this to the runner’s available desktop. Actual client-area dimensions are recorded in the metadata. Window borders are not included, and captured pixels are not edited afterward.
 
 The six original versioned release-test screenshots remain linked in the root README. The color-pattern test fixture, test assertions, release reports, installers and application source are unchanged by this media update. The sample is **not** before/after enhancement evidence, DLSS output, or hardware/perceptual-quality certification.
 

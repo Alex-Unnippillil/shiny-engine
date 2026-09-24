@@ -57,7 +57,11 @@ try {
 $diagnostics = Get-Content (Join-Path $Output 'ui-playback.json') -Raw | ConvertFrom-Json
 if ($diagnostics.app -ne '0.10.0' -or $diagnostics.decodedVideoFrames -lt 1 -or $diagnostics.width -ne 1280 -or $diagnostics.height -ne 742 -or $diagnostics.dlss5Inference -ne $false) { throw 'Native decoding evidence missing' }
 $shot = [Drawing.Image]::FromFile($screenshot)
-try { if ($shot.Width -lt 1200 -or $shot.Height -lt 700) { throw 'Screenshot unexpectedly small' } } finally { $shot.Dispose() }
+# The runner's desktop constrains the requested outer size. Record actual client pixels.
+try {
+ $shotWidth=$shot.Width; $shotHeight=$shot.Height
+ if ($shotWidth -lt 1000 -or $shotHeight -lt 680) { throw 'Screenshot too small to show the readable workspace' }
+} finally { $shot.Dispose() }
 @{
  schema=1; purpose='README presentation, not enhancement evidence'; appVersion='0.10.0'
  playerSourceSha='1957df8453bc26d341a1e47976d1e034f8f46d9c'
@@ -65,7 +69,8 @@ try { if ($shot.Width -lt 1200 -or $shot.Height -lt 700) { throw 'Screenshot une
  sourcePage='https://science.nasa.gov/asset/webb/cosmic-cliffs-in-the-carina-nebula-nircam-image/'
  sourceUrl=$sourceUrl; sourceSha256=(Get-FileHash $source -Algorithm SHA256).Hash.ToLower()
  credit='NASA, ESA, CSA, STScI'; media='10-second silent still-image clip; bicubic resize to 1280x742 and JPEG quality 96'
- capture='Unmodified player --ui-smoke / PrintWindow client-area capture; no compositing or UI repaint'
+ capture='Unmodified player --ui-smoke / PrintWindow client-area capture; no post-capture editing or compositing'
+ screenshotWidth=$shotWidth; screenshotHeight=$shotHeight
  screenshotSha256=(Get-FileHash $screenshot -Algorithm SHA256).Hash.ToLower()
  captureRun=$env:GITHUB_RUN_ID; diagnostics=$diagnostics
 } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $Output 'readme-cosmic-cliffs.json') -Encoding utf8
