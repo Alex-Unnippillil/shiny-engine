@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 Add-Type @'
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 public static class ShinyUiTest {
@@ -14,6 +15,42 @@ public static class ShinyUiTest {
  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
  [DllImport("user32.dll",EntryPoint="FindWindowW",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,IntPtr title);
  [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h,uint command);
+ private delegate bool EnumWindowsCallback(IntPtr h,IntPtr parameter);
+ [DllImport("user32.dll")] private static extern bool EnumWindows(EnumWindowsCallback callback,IntPtr parameter);
+ [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr h,out uint processId);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern int GetClassNameW(IntPtr h,StringBuilder name,int count);
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] private static extern IntPtr GetModuleHandleW(string name);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] private static extern IntPtr CreateWindowExW(uint extendedStyle,string cls,string title,uint style,int x,int y,int width,int height,IntPtr owner,IntPtr menu,IntPtr instance,IntPtr parameter);
+ [DllImport("user32.dll")] public static extern bool DestroyWindow(IntPtr h);
+ public static IntPtr FindOwnedWindow(string cls,IntPtr owner,uint processId) {
+  IntPtr result=IntPtr.Zero;
+  EnumWindows((h,p)=>{
+   uint actual; GetWindowThreadProcessId(h,out actual);
+   if(actual!=processId || GetWindow(h,4)!=owner || !IsWindowVisible(h)) return true;
+   var name=new StringBuilder(256); GetClassNameW(h,name,name.Capacity);
+   if(name.ToString()!=cls) return true;
+   result=h; return false;
+  },IntPtr.Zero);
+  return result;
+ }
+ public static IntPtr CreateCompetingDialog() {
+  // A visible topmost dialog in the TEST process must not mask the player's picker.
+  // No executable/library input, no user interaction and no filesystem side effects.
+  return CreateWindowExW(0x08000088,"#32770","Shiny test-only competing dialog",0x90000000,
+   0,0,32,32,IntPtr.Zero,IntPtr.Zero,GetModuleHandleW(null),IntPtr.Zero);
+ }
+ public static string[] DialogInventory(uint processId) {
+  var result=new List<string>();
+  EnumWindows((h,p)=>{
+   uint actual; GetWindowThreadProcessId(h,out actual);
+   var cls=new StringBuilder(256); GetClassNameW(h,cls,cls.Capacity);
+   if(actual==processId || cls.ToString()=="#32770")
+    result.Add("class="+cls+"; playerProcess="+(actual==processId)+"; visible="+IsWindowVisible(h)+"; enabled="+IsWindowEnabled(h)+"; owner="+GetWindow(h,4).ToInt64());
+   return true;
+  },IntPtr.Zero);
+  return result.ToArray();
+ }
+
  [DllImport("user32.dll")] public static extern IntPtr GetMenu(IntPtr h);
  [DllImport("user32.dll")] public static extern IntPtr GetSubMenu(IntPtr h,int index);
  [DllImport("user32.dll")] public static extern int GetMenuItemCount(IntPtr h);
@@ -34,6 +71,8 @@ function Snapshot($h,$name) { $rect=[ShinyUiTest+Rect]::new(); if (-not [ShinyUi
 $proc = Start-Process $Executable -ArgumentList @('--vlc-dir',('"'+$Runtime+'"'),('"'+$Fixture+'"')) -PassThru
 $passed = [Collections.Generic.List[string]]::new()
 $main=[IntPtr]::Zero
+$panel=[IntPtr]::Zero
+$decoy=[IntPtr]::Zero
 try {
  Wait-For { $proc.Refresh(); $script:main=$proc.MainWindowHandle; $main -ne [IntPtr]::Zero } 'main window'
  Wait-For { (Text ([ShinyUiTest]::GetDlgItem($main,304))) -match '^Playing with libVLC' } 'decoded primary playback'
@@ -51,7 +90,7 @@ try {
  $passed.Add('real playback action creates a source bookmark')
  Command $main 137
  $panel=[IntPtr]::Zero
- Wait-For { $script:panel=[ShinyUiTest]::FindWindow('ShinyNativeNeural',[IntPtr]::Zero); $panel -ne [IntPtr]::Zero } 'native neural panel'
+ Wait-For { $script:panel=[ShinyUiTest]::FindOwnedWindow('ShinyNativeNeural',$main,[uint32]$proc.Id); $panel -ne [IntPtr]::Zero } 'native neural panel'
  if ([ShinyUiTest]::GetWindow($panel,4) -ne $main) { throw 'Unexpected workbench owner' }
  if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,103))) { throw 'Unreviewed native inference was enabled' }
  Start-Sleep -Milliseconds 1500
@@ -68,13 +107,21 @@ try {
  # Open the actual modal folder picker asynchronously. The primary owner must
  # remain disabled until cancellation, so its auto-next timer cannot destroy
  # the research panel on a nested message loop.
- [void][ShinyUiTest]::PostMessage($panel,0x111,[IntPtr]102,[IntPtr]::Zero)
+ $decoy=[ShinyUiTest]::CreateCompetingDialog()
+ if ($decoy -eq [IntPtr]::Zero) { throw 'Could not create the test-only competing dialog' }
+ if ([ShinyUiTest]::FindOwnedWindow('#32770',[IntPtr]::Zero,[uint32]$PID) -ne $decoy) { throw 'Competing-dialog fixture is not discoverable in the test process' }
+ if (-not [ShinyUiTest]::PostMessage($panel,0x111,[IntPtr]102,[IntPtr]::Zero)) { throw 'Could not request the model folder picker' }
  $picker=[IntPtr]::Zero
- Wait-For { $script:picker=[ShinyUiTest]::FindWindow('#32770',[IntPtr]::Zero); $picker -ne [IntPtr]::Zero -and [ShinyUiTest]::GetWindow($picker,4) -eq $panel } 'model folder picker'
+ Wait-For { $script:picker=[ShinyUiTest]::FindOwnedWindow('#32770',$panel,[uint32]$proc.Id); $picker -ne [IntPtr]::Zero } 'model folder picker'
+ if ($picker -eq $decoy) { throw 'A foreign dialog was mistaken for the model picker' }
  if ([ShinyUiTest]::IsWindowEnabled($main)) { throw 'Primary owner remained enabled during the research picker' }
  [void][ShinyUiTest]::PostMessage($picker,0x111,[IntPtr]2,[IntPtr]::Zero)
  Wait-For { -not [ShinyUiTest]::IsWindow($picker) -and [ShinyUiTest]::IsWindowEnabled($main) -and [ShinyUiTest]::IsWindowEnabled($panel) } 'picker cancellation and owner recovery'
  if ([ShinyUiTest]::IsWindowEnabled([ShinyUiTest]::GetDlgItem($panel,103))) { throw 'Cancelled picker granted model authorization' }
+ if (-not [ShinyUiTest]::IsWindow($decoy)) { throw 'Picker cancellation closed the unrelated test dialog' }
+ if (-not [ShinyUiTest]::DestroyWindow($decoy)) { throw 'Could not dispose the competing-dialog fixture' }
+ $decoy=[IntPtr]::Zero
+ $passed.Add('process-and-owner-scoped lookup ignores a competing dialog; cancellation affects only the actual model picker')
  $passed.Add('real folder-picker cancellation restores owner controls without authorizing a model')
  Command $panel 2
  Wait-For { -not [ShinyUiTest]::IsWindow($panel) } 'panel closes'
@@ -107,11 +154,12 @@ try {
 } catch {
  $failure = $_
  if ($main -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($main)) {
-  @{status=(Text ([ShinyUiTest]::GetDlgItem($main,304)));passed=$passed;error=$failure.Exception.Message} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-failure.json')
+  @{status=(Text ([ShinyUiTest]::GetDlgItem($main,304)));passed=$passed;error=$failure.Exception.Message;panelExists=[ShinyUiTest]::IsWindow($panel);panelEnabled=[ShinyUiTest]::IsWindowEnabled($panel);mainEnabled=[ShinyUiTest]::IsWindowEnabled($main);windows=[ShinyUiTest]::DialogInventory([uint32]$proc.Id)} | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-failure.json')
   Snapshot $main 'ui-failure-main.png'
  }
  throw $failure
 } finally {
+ if ($decoy -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($decoy)) { [void][ShinyUiTest]::DestroyWindow($decoy) }
  if ($main -ne [IntPtr]::Zero -and [ShinyUiTest]::IsWindow($main)) { [void][ShinyUiTest]::PostMessage($main,0x10,[IntPtr]::Zero,[IntPtr]::Zero) }
  if (-not $proc.WaitForExit(10000)) { $proc.Kill();throw 'Player failed to close after UI checks' }
 }
