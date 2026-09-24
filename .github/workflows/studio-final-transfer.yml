@@ -1,0 +1,55 @@
+name: Apply verified studio corrections
+on:
+  push:
+    branches: ['feat/video-studio-polish']
+permissions:
+  contents: write
+jobs:
+  transfer:
+    if: >-
+      github.event.head_commit.message == 'chore: transfer exact reviewed studio corrections'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+      - name: Apply checksum-bound non-workflow files to feature branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/feat/video-studio-polish'
+          test "$(git rev-parse HEAD^)" = 'a6bc6ab2881128e7dbfce597f7750856f8f7e310'
+          python - <<'PY'
+          import base64, hashlib, json, pathlib, zlib
+          encoded = 'eNrtWGl328YV/StT1sciHRDCYLDSphNFS6rUdlRJcXpOmKPMKiIBARYALauq/nvvACBFLU7c9PRbdSSRwJs3y1vuu29+vBkseTMfTAZZUTc8z3VV715lhSqv6t16Uf6q3WVNB85AaFNWGuNkqsI49UXoCRn7seSeJ7iQLOQpFZGmkupU+qnxPenRRAsqDVe+SELtKaG1h7m4aXSFqRKPep6hfmikpIqrMIyCVHNqQpoGUvhSp0mUsMRTnh8ZEUTS+EozzvDeBCLGVHLOi0tdDyY//kgDh4bOwG6TyzkZPrMHI1lBvhrunM2z4vp9Lk9yfq0rV3/UO0738k0mKl5dv+UFv/wtyX6ebQsPCyws9UIXzQ9l9etGM++UxmJVqFzXsxl1PdebzWqrdFFjSxnPXZXnT4+l/8FY/1Nji2o2azf5rrq3t2pVNNlCz2Yfcjlm2JcfzGaYGI+95qpAFHie1yqMRuSGZIYMx0XZkOG5rpvxiTXp8NsyK7qvzxpeXeqGtLYetRrNvCqvyGxwvI4nUi6yptGqGzQbkFtyOysGPzk/0sShqTOwazxbZS5fLsm40GTHc1PX2yHjsiL2vdKyVFq9z5Qujyq+0DUZ5w2hd6vtrBdTZNl6mKhMEbvtTpd8sLo763V95viBMyDt6Z692Ts7P/z78fn+dweH7fpet7LkmLK8dJdc/ooIqN39EgZsR7B2xHD4eMwH5E9WFuRf5KysmvF34hctmxEZ/wKTEVh41J2wjQqn9bfTenLnycMsutjbnCZbLDEryZqa6I9cNqQLB0X6ZevNEVnosPj/yfDHk2ET/Z8T91th/32xAVJS6YZnxcaPipgs1/fT4Csssnb39FlTrfTL9eje5Gc6RwjBuU+L3/een7KNpDvnSVUKvdZBfGQm02ofwYBMyuVa0Jthb9WUB7rBQnfbeJx206ez8SVZFY8O0VTt0d9ibH5cGF1pRMj0meF5DWmdXRZ27PpRlks93TnI6mVZcwEj/dCVILJ/TFY1nEbelWQ5v64zyXPyzcn3Din0qsL3hV3AIWWRYzmyrLDQP1ZZnTWaYIIiL7kiyNUauatwpA+ZBBrwPFPc2tRFwiBX98sCFmrOy/G3dZe8uhnjZYOIvuf2ZVWWhuxsXDyutM1I9xeo7Yxs6v1062xKaoE1Pujddbj22bx7CSvK5XK7qPqp0DyJQmakkrFiUepz7nNDE5ZKwfwg9j1FGYsoS6TmIUtTbhRP0iDyAsb5VlGlvg5SIT0dcI6SaxQLpacShRlDwWJPmyQMfROaSHk6VMKjNIpSbYIoZaFh7EFRpdSh1LdgyREjpIDDp4h0N1PT6WzQZty4z7jZ4MuhFfVgZOVdYg6+nA32FF9aa8AHSAqMncwGZ50e8qSPj9lgNOkmf9lXCFvUbVUnSDAAjNvoj81QufODfecKEdiuB180+gtkFJmtQEZifA6+aCWyXNglEFDYwderLFekR2zkSiPn7S7+tuIVRxYgILH+yFlgg063mrR7LosjRIJTt3mo1ZediEuJ4Jh0D4sVBKP1nkNLRNo9w7tDa7bnBLuxJ6tHmWl3pjIYuJlOMzW6sWf6AsY66YrIxG6/swIONZsBwIo+yzei3sQb+Zk1wUa6NkgnO2iX2gi7lTfS/v9TBgPYZwZjO1uh6jbzrEbJ2TKjS95bZLkm4rrBgC6eCda/zIpLm7QN4etMRRYevDk7IwLH1IVyW+N/nZd4Upvdie4Z23PJcVftCo3TkkvrI1v2tFxZn5ClrhZZba2AmUaPzvPyE8lo4b7jCLunh3sHbw/dhdrOROElWgZIBq1CGXpJKjxkIGUBo7Gf+NqPBYguDyyhVamH/0ESBopqE8ooDZKtTEROC849EWrmhQppR7XiQaBDL0ioR2OmjIbAD0CDE8ogElKGHPyXpSoW9H4mgig4gz+TtpaRrnSTligh6n2PBhvI/BgFXSBGDhjA6aogP7dKnc641Rn3g8cYPAbYrZa2LP5sA9Yadmwxd12YWqB0SD2HM2D7mnAg6QbxHetXBHBl6cjvLHSCGSy6u//Mlj+3kM7VIiuyGtoNpqmyy7mdHyHUonillUvOEXkA9p5gtcJV0dUP9/d9LOFVd34fbLWOooD5wk+kx2gYG268ABAZqyRUgfJYqFPfS3gqlKBBwC3WypAFWkRcJUxuuVgJw4HVqdQm4nAwtDk6nzBgYQB3p7FnVTwpjKKRl6aCsRAdkU9VIBPm8QdgGzo0Ah/uaplEVQc0LKvuG8HA6sWa6ZEpMqa18GeFuv2wefew7jA/SfGH0EtThJ9CvUlMGtGQe3FslEzDyHipUjrlkvk6SSIqE+pHEcNsioZbpjChn6bMBCZA66a1DkODU7OIIzGCKBQmjRkXSiUoZx6H4aWOAoqUCY2nvcDcN0UQOIGF0LpRk0lpECGaL0i5aoYt43qJb69ezQY3yHXA/QyVCAi14PbbhDqbt2gp2lf232zw6lVnjsmkt6KdworuFDa0cEtpyJfZl/gbv+6lazSeDSwptxSjLR2PZ0OJAtVr58I87ZMddDdgrm3Ib0Z0j/eHPOZbm+EW52s3u+iHXLRdzgNtUCp7ZvUp1bX8YpnJZlXp+r5+XtbNSS95pGyFn9DrOhUQTltQqgz0aKM9tL5sbLOAGmPJYvu+ZYK9Ebe2XyGQq7MVMOlU12XeQv8psAFlCTbfTKkLFBz9/Hn3OX7923p/cN33PYlul2317hS6lHtXtXx3bwme+OHpgSqv63BDiJ8akWfol1vQ3UThW3DpPpUJ6EmVydoy3msXRBXmRbVfF1ngBXZpjVuTOQfdAkHJ0IJfFaSjqnWLu4ASdWWhtF5q9CUS5BdHk+2qFtCNjZZx12OqFc/Xi9fXhey4OLKwtiO/P31To1LIfKUsINuUmRW3XQkG1/kTEnXU9UZtKvcZdKGrCtxoNkBPnXe9bW13qzJ+WSCqcEBb1T8T2dAfLHqusg1uXID+hozJ2GjKQ7BloRMqfEG5CpWOaCJ0SlHgDY+jSCvGwa5VFKOcmxDov31TBfrNYzBrSaM48E0U2nIuLaBh4jjRHmeAd5QCgB+qSpQkggdgBEHg+4I/INW+wwBtr3hd64XIr48V3JU112tsn/bIbrEdHU0pdV2X1V4l55nt0JBsGMEXCnV+0BFyUOmuD7fR73b1F7LmemllV1nB/Nlg9/VnWLNCh6SvLvBZY1Mw7IPaGevUpAnVcSgCLQ1lAHG0KGEgbEviiwjVQYnIVzEPlC+DOEpNGAPqvTgCsYq36RHjUZQwP43RnwQCFSEQmmoeC8EjpVF/qYmS2EcxRQ8TS84DHgkVhajSqDT6vk1jz4mp5dzdD0LvG90clXJVD0fT6fyqANE+Pdw/J9XN7UuI9vMMBzyFPYdW6DyvbLSRrZ+uxR+/Pqj4lR2HpXI9PPAP6GRin4+GaI0ci4WZvJC8bl4ZlILm9bByWyIzpqOnpaJsmnIB8cgR1aqeu9jOcOT4rhm9vL3bQ9tvzavpeh+HhbJbGY5sXh3tHb85PBjOq9HopkJnwmsNQQUmVxWk66pvc6x6ABIlm2nnv6+zZsGXz5+3Huge1ipt097RxiR0kvC/tOQ3Klvmq3oyOdGWqRfDzYv9Mkfi++iPKPUc34cN0wSHf2j9S/e+3Z9jFuehwY/fnd+Z2x89JeuN7Y9a29rzpbGD3835MFiTH95enB2eH323//3ZZP3ir8dv3nRvjov+xkB3p3SKVZ4vm8o52ntzdrgxu/cIrmpZZcum3u09dNGD1fJ6O6XSgIEIxTKiMbILDawU+I1FonzOmB/LWHlIDuMxGYBZyjhm4Japl4ZpEkFtm4MhlUBjfSa0r3QodEBZrBMVB1Ei8KPTkFNJjYnQxYRxaig4nkLrYQLoqOgBHY19x/7dhcLmYnJK7I2Ha6lPPRyaMlcoDrugpE/ejADJXdR8ddF276h7pUJ7CGRaNWacjEHmbeN95/+e/A8367lIABSLp2++oEumU8LavuQTKltXYnY42thzSwDuRVybc09MsXW5taXr4LB7eW7v/bTeskzf3T7okshiBQYv9OYiDjM9DBY00HehsmufLn4zbkTspSKGg4xgkfSjkEkD38OhPuOJCbinVBz5Mg7gafQ8IuYmRTHkPAI234NidC1AVj/ViB4/4lxxcH0EYBgkkQGCR8ygN4pTT0tUOpS5RFAs7GsumAr8B1BMGZKbbUHIU/GjQBuHn7rKdJ66yuysvn3VaN+MHjvxs+LxqkIx7QKyDWW1Wizru4gbjdaXObFj/x6dxXbKi1XH0+y9+vDm0/E5If6tQ26ejsYJObJw3Q24F2tryWjy+Iz/5TlvXrzYLOSQFy/WJ7kFTJJOpV4tAPhPr3yVNXNS69y4lsNUzSnPal0DbU+7gD207G40IZXbxvv1RXdT32/YWRMdh5z9Zc+xd9AOOT08+e5/5suHZ7KJ99O/AXyFgP8='
+          decoder = zlib.decompressobj()
+          raw = decoder.decompress(base64.b64decode(encoded, validate=True), 10000)
+          assert decoder.eof and not decoder.unused_data and len(raw) == 7419
+          assert hashlib.sha256(raw).hexdigest() == 'f65df6ba8ca02d8c870d9f53bcea041f6c03b2be6907b962f2bd39ae6d8e146c'
+          rows = json.loads(raw)
+          allowed = {'installers/windows/smoke.ps1','native/library-manager/gui.cpp','native/vlc-player/README.md','native/vlc-player/core.hpp','native/vlc-player/playback.cpp','native/vlc-player/player.manifest','native/vlc-player/preview_presenter.hpp','scripts/release_player.py','tests/release/test_release_player.py'}
+          assert len(rows) == 9 and {r['path'] for r in rows} == allowed
+          for row in rows:
+              path = pathlib.Path(row['path'])
+              assert path.is_file() and not path.is_symlink()
+              old = path.read_bytes()
+              assert hashlib.sha256(old).hexdigest() == row['before'], str(path)
+              lines = old.decode('utf-8').splitlines(keepends=True)
+              last = 0
+              for start,end,text in row['changes']:
+                  assert type(start) is int and type(end) is int and last <= start <= end <= len(lines) and isinstance(text,str)
+                  last = end
+              for start,end,text in reversed(row['changes']):
+                  lines[start:end] = [text]
+              new = ''.join(lines).encode('utf-8')
+              assert hashlib.sha256(new).hexdigest() == row['after'], str(path)
+              path.write_bytes(new)
+          PY
+          git add -- installers native scripts tests
+          git diff --cached --check
+          git diff --cached --stat
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: verify all installed filters and refine studio status and focus'
+          git push origin HEAD:refs/heads/feat/video-studio-polish
