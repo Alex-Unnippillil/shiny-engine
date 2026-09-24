@@ -37,7 +37,7 @@ class NrSource {
  struct Pixels;
  std::unique_ptr<Pixels> pixels;std::unique_ptr<Engine> engine;
  public:
- NrSource(std::shared_ptr<VlcApi>,const Item&,uint32_t width,uint32_t height,int64_t time);
+ NrSource(std::shared_ptr<VlcApi>,const Item&,uint32_t width,uint32_t height,int64_t time,unsigned maxEdge=512);
  ~NrSource();
  std::optional<NrImage> sample();
  void pause(bool);void seek(int64_t);int64_t time()const;bool playing()const;bool seekable()const;

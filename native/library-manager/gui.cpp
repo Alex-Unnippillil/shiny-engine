@@ -9,6 +9,7 @@
 #include <future>
 #include <optional>
 #include <map>
+#include "../ui/theme.hpp"
 namespace {
 using namespace shiny::packages;
 std::wstring wide(std::string_view s){if(s.empty())return {};
@@ -50,6 +51,7 @@ struct App {
  enum {List=100,Details=101,Status=102,Bundled=201,Import=202,Quarantine=203,Verify=204,Stage=205,Activate=206,Rollback=207,Original=208,Remove=209,Export=210,Refresh=211,Cancel=212};
  HWND hwnd=nullptr;
 HFONT font=nullptr;
+shiny::design::Theme theme;
 UINT dpi=96;
 bool closing=false,busy=false;
  std::future<Result> task;
@@ -62,45 +64,56 @@ bool compatible=false;
 std::vector<Row> rows;
  ~App(){cancellation.request_stop();
 if(task.valid())task.wait();
-if(font)DeleteObject(font);
+
 }
  int px(int x)const{return MulDiv(x,static_cast<int>(dpi),96);
 }
  HWND control(const wchar_t* cls,const wchar_t* text,int id,DWORD style=0){auto h=CreateWindowExW(0,cls,text,WS_CHILD|WS_VISIBLE|WS_TABSTOP|style,0,0,10,10,hwnd,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),GetModuleHandleW(nullptr),nullptr);
 SendMessageW(h,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);
+if(std::wstring_view(cls)==L"BUTTON")SetWindowSubclass(h,shiny::design::hoverProc,1,0);
+if(std::wstring_view(cls)==L"STATIC")SetWindowLongPtrW(h,GWL_STYLE,GetWindowLongPtrW(h,GWL_STYLE)&~WS_TABSTOP);
 return h;
 }
- void setFont(UINT value){dpi=value?value:96;
-auto old=font;
-font=CreateFontW(-px(15),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
-EnumChildWindows(hwnd,[](HWND c,LPARAM p)->BOOL{SendMessageW(c,WM_SETFONT,static_cast<WPARAM>(p),TRUE);return TRUE;},reinterpret_cast<LPARAM>(font));
-if(old)DeleteObject(old);
-}
+ void setFont(UINT value){theme.set(hwnd,value);dpi=theme.dpi;font=theme.body;
+  if(auto list=GetDlgItem(hwnd,List))SendMessageW(list,LB_SETITEMHEIGHT,0,px(64));
+  if(auto title=GetDlgItem(hwnd,1))SendMessageW(title,WM_SETFONT,reinterpret_cast<WPARAM>(theme.heading),TRUE);
+ }
  void create(){
   setFont(GetDpiForWindow(hwnd));
-control(L"STATIC",L"Enhancement Libraries  /  local package management",1);
-  control(L"STATIC",L"Spatial reference libraries are not DLSS. NVIDIA candidates stay quarantined. Original VLC is never overwritten.",2);
-  control(L"LISTBOX",L"",List,LBS_NOTIFY|LBS_NOINTEGRALHEIGHT|WS_VSCROLL|WS_BORDER);
-  control(L"EDIT",L"",Details,ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL|WS_VSCROLL|WS_BORDER);
+control(L"STATIC",L"Enhancement libraries",1);
+  control(L"STATIC",L"Manage locally. Compare confidently. Original VLC and your media remain untouched.",2);
+  control(L"LISTBOX",L"",List,LBS_NOTIFY|LBS_NOINTEGRALHEIGHT|WS_VSCROLL|LBS_OWNERDRAWFIXED|LBS_HASSTRINGS);
+  control(L"EDIT",L"",Details,ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL|WS_VSCROLL);
   const std::pair<int,const wchar_t*> buttons[]={{Bundled,L"Import bundled"},{Import,L"Import folder..."},{Quarantine,L"Quarantine DLL..."},{Verify,L"Verify"},{Stage,L"Stage"},{Activate,L"Select next preview"},{Rollback,L"Roll back"},{Original,L"Use original"},{Remove,L"Remove"},{Export,L"Export report..."},{Refresh,L"Refresh"},{Cancel,L"Cancel operation"}};
-  for(auto [id,label]:buttons)control(L"BUTTON",label,id,BS_PUSHBUTTON);
+  for(auto [id,label]:buttons)control(L"BUTTON",label,id,BS_OWNERDRAW);
   control(L"STATIC",L"Opening local catalog...",Status);
+control(L"STATIC",L"YOUR PACKAGES",3);control(L"STATIC",L"PACKAGE DETAILS & TRUST",4);
+setFont(dpi);
 SetTimer(hwnd,1,50,nullptr);
 start(Refresh,{});
  }
- void layout(){RECT r{};
-GetClientRect(hwnd,&r);
-int w=MulDiv(r.right,96,static_cast<int>(dpi)),h=MulDiv(r.bottom,96,static_cast<int>(dpi));
-  auto pos=[&](int id,int x,int y,int width,int height){MoveWindow(GetDlgItem(hwnd,id),px(x),px(y),px(std::max(1,width)),px(std::max(1,height)),TRUE);
-};
-  pos(1,20,18,w-40,28);
-pos(2,20,54,w-40,44);
-int content=std::max(150,h-270),left=(w-52)*2/5;
-  pos(List,20,104,left,content);
-pos(Details,32+left,104,w-left-52,content);
-  int buttonWidth=(w-70)/4;
-for(int i=0;i<12;++i)pos(Bundled+i,20+(i%4)*(buttonWidth+10),h-150+(i/4)*38,buttonWidth,30);
-  pos(Status,20,h-32,w-40,24);
+ void layout(){RECT r{};GetClientRect(hwnd,&r);
+  int w=MulDiv(r.right,96,static_cast<int>(dpi)),h=MulDiv(r.bottom,96,static_cast<int>(dpi));
+  auto pos=[&](int id,int x,int y,int width,int height){MoveWindow(GetDlgItem(hwnd,id),px(x),px(y),px(std::max(1,width)),px(std::max(1,height)),TRUE);};
+  pos(1,24,22,w-48,34);pos(2,25,66,w-50,32);
+  int left=(w-64)*2/5,content=std::max(145,h-330);
+  pos(3,24,115,left,22);pos(4,40+left,115,w-left-64,22);
+  pos(List,24,145,left,content);pos(Details,40+left,145,w-left-64,content);
+  int buttonWidth=(w-78)/4;
+  for(int i=0;i<12;++i)pos(Bundled+i,24+(i%4)*(buttonWidth+10),h-165+(i/4)*39,buttonWidth,32);
+  pos(Status,24,h-42,w-48,38);InvalidateRect(hwnd,nullptr,FALSE);
+ }
+ void drawRow(const DRAWITEMSTRUCT& d){
+  FillRect(d.hDC,&d.rcItem,theme.card);if(d.itemID>=rows.size())return;
+  const auto& row=rows[d.itemID];RECT box=d.rcItem;InflateRect(&box,-px(4),-px(4));
+  bool selected=(d.itemState&ODS_SELECTED)!=0;
+  theme.rounded(d.hDC,box,theme.surface,selected?theme.accent:theme.line,12);
+  RECT title{box.left+px(12),box.top+px(7),box.right-px(12),box.top+px(28)};
+  auto name=row.id=="shiny-spatial"?(row.version=="1.2.0"?"Adaptive detail":"Spatial reference"):row.id;
+  theme.text(d.hDC,wide(name+"  "+row.version),title,font,theme.ink);
+  RECT meta{title.left,title.bottom+px(2),title.right,box.bottom-px(4)};
+  theme.text(d.hDC,wide(row.state+"  ·  "+(row.compatible?"Build catalog match":"Quarantined")),meta,theme.captionFont,selected?theme.accent:theme.muted);
+  if(d.itemState&ODS_FOCUS){RECT focus=box;InflateRect(&focus,-px(2),-px(2));DrawFocusRect(d.hDC,&focus);}
  }
  std::string selectedId(){auto n=SendMessageW(GetDlgItem(hwnd,List),LB_GETCURSEL,0,0);
 return n>=0&&static_cast<std::size_t>(n)<rows.size()?rows[static_cast<std::size_t>(n)].digest:std::string{};
@@ -133,14 +146,15 @@ rows.push_back(std::move(row));
   }
   if(!rows.empty())SendMessageW(GetDlgItem(hwnd,List),LB_SETCURSEL,selection,0);
 details();
+InvalidateRect(GetDlgItem(hwnd,List),nullptr,FALSE);
 enabled();
  }
  void details(){
   auto id=selectedId();
 std::string text="Selection applies only when a NEW managed preview starts.\r\nExisting previews keep their leased version until closed.\r\n\r\n";
-  for(auto& row:rows)if(row.digest==id){text+="Package: "+row.id+"\r\nVersion: "+row.version+"\r\nState: "+row.state+"\r\nDigest: "+row.digest+"\r\n\r\n"+(row.compatible?"Exact-build spatial reference package. Stage, then select. Not a neural or DLSS backend.":"Blocked: "+row.blocked+". Import never grants execution permission.")+"\r\n\r\n";
+  for(auto& row:rows)if(row.digest==id){text+="Package: "+row.id+"\r\nVersion: "+row.version+"\r\nState: "+row.state+"\r\nDigest: "+row.digest+"\r\n\r\n"+(row.compatible?"Manifest matches this build catalog. Verify bytes before staging. Not a neural or DLSS backend.":"Blocked: "+row.blocked+". Import never grants execution permission.")+"\r\n\r\n";
 }
-  text+="Signature/publisher approval and video compatibility are different checks. This unsigned build permits only its compiled first-party hashes.\r\n\r\nCatalog (no absolute file paths):\r\n"+report;
+  text+="WORKFLOW\r\nImport → Verify → Stage → Select next preview\r\n\r\nThe adaptive detail package (1.2.0) limits halos and noise amplification. All three are CPU spatial filters, not DLSS.\r\n\r\nTRUST BOUNDARY\r\nThis unsigned build permits only its compiled first-party hashes. NVIDIA / Streamline candidates remain quarantined.\r\n\r\nExport report saves the complete machine-readable catalog. No full local paths or media names are included.";
   SetWindowTextW(GetDlgItem(hwnd,Details),wide(text).c_str());
 enabled();
  }
@@ -154,7 +168,7 @@ enabled();
 SetWindowTextW(GetDlgItem(hwnd,Status),L"Working locally; original playback is unaffected...");
   task=std::async(std::launch::async,[action,path,id,token,root=root]()->Result{try{
    Store s(root.empty()?defaultStore():root,productionPolicy());std::string message="Catalog refreshed. No playback process was changed.";
-   if(action==Bundled){for(auto version:{"1.0.0","1.1.0"})s.importFolder(executableDirectory()/"library-bundles"/version,token);message="Bundled packages imported into quarantine. Verify and stage before selection.";}
+   if(action==Bundled){for(auto version:{"1.0.0","1.1.0","1.2.0"})s.importFolder(executableDirectory()/"library-bundles"/version,token);message="Bundled packages imported into quarantine. Verify and stage before selection.";}
    else if(action==Import){s.importFolder(*path,token);message="Package imported into quarantine.";}
    else if(action==Quarantine){s.quarantineFile(*path,token);message="DLL copied into quarantine. It was not executed or approved.";}
    else if(action==Verify){auto reason=s.verify(id,token);message=reason.empty()?"Integrity and build policy verified.":"Integrity verified; activation blocked: "+reason;}
@@ -204,13 +218,18 @@ SetWindowLongPtrW(h,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(app));
 return 0;
 case WM_SIZE:app->layout();
 return 0;
-   case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(l)->ptMinTrackSize={app->px(800),app->px(580)};
+   case WM_GETMINMAXINFO:reinterpret_cast<MINMAXINFO*>(l)->ptMinTrackSize={app->px(800),app->px(640)};
 return 0;
    case WM_DPICHANGED:{app->setFont(HIWORD(w));
 auto* r=reinterpret_cast<RECT*>(l);
 SetWindowPos(h,nullptr,r->left,r->top,r->right-r->left,r->bottom-r->top,SWP_NOZORDER);
 return 0;
 }
+   case WM_SETTINGCHANGE:app->setFont(app->dpi);app->layout();return 0;
+   case WM_ERASEBKGND:{RECT r{};GetClientRect(h,&r);FillRect(reinterpret_cast<HDC>(w),&r,app->theme.background);return 1;}
+   case WM_CTLCOLORSTATIC:case WM_CTLCOLOREDIT:case WM_CTLCOLORLISTBOX:{bool card=reinterpret_cast<HWND>(l)==GetDlgItem(h,Details)||message==WM_CTLCOLORLISTBOX;return reinterpret_cast<LRESULT>(app->theme.control(reinterpret_cast<HDC>(w),card));}
+   case WM_MEASUREITEM:reinterpret_cast<MEASUREITEMSTRUCT*>(l)->itemHeight=static_cast<UINT>(app->px(64));return TRUE;
+   case WM_DRAWITEM:{auto& d=*reinterpret_cast<DRAWITEMSTRUCT*>(l);if(d.CtlID==List)app->drawRow(d);else app->theme.button(d,d.CtlID==Bundled||d.CtlID==Activate);return TRUE;}
    case WM_COMMAND:if(LOWORD(w)==List){if(HIWORD(w)==LBN_SELCHANGE)app->details();
 }else app->action(LOWORD(w));
 return 0;
@@ -232,6 +251,7 @@ return 0;
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show){
  SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
 SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+INITCOMMONCONTROLSEX cc{sizeof(cc),ICC_STANDARD_CLASSES};InitCommonControlsEx(&cc);
 auto hr=CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
 if(FAILED(hr))return 2;
  int result=0;
@@ -245,7 +265,7 @@ WNDCLASSW wc{};
 wc.hInstance=instance;
 wc.lpfnWndProc=App::proc;
 wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);
-wc.hbrBackground=reinterpret_cast<HBRUSH>(COLOR_WINDOW+1);
+wc.hbrBackground=nullptr;
 wc.lpszClassName=L"ShinyLibraryManager";
 RegisterClassW(&wc);
   auto hwnd=CreateWindowExW(0,wc.lpszClassName,L"Shiny Player · Enhancement Libraries",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,1120,740,nullptr,nullptr,instance,&app);

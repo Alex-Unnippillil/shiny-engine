@@ -1,10 +1,10 @@
-# Shiny Player 0.7.0 — Windows x64
+# Shiny Player 0.9.0 — Windows x64
 
 A local VideoLAN libVLC player with an opt-in OpenDLSS-NR research studio. The player works independently of any model. Neural experiments use local data you are authorized to use; they are not certified NVIDIA DLSS output.
 
 ## Install
 
-Run `ShinyPlayer-0.7.0-Windows-x64-Setup.exe` for per-user installation, shortcuts and uninstall, or extract `ShinyPlayer-0.7.0-Windows-x64-Portable.zip`. No administrator rights are required. These packages are unsigned.
+Run `ShinyPlayer-0.9.0-Windows-x64-Setup.exe` for per-user installation, shortcuts and uninstall, or extract `ShinyPlayer-0.9.0-Windows-x64-Portable.zip`. No administrator rights are required. These packages are unsigned.
 
 Setup can optionally download the hash-verified official VLC 3.0.24 x64 runtime from VideoLAN into the application's private directory. Otherwise use an existing official 64-bit VLC 3.0.24+ in the 3.0 series. Use **Media > Locate installed VLC** when it is not in a standard location. VLC 4 is a different ABI and is not supported.
 

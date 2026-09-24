@@ -22,6 +22,7 @@ public static class ShinyManagedUiTest {
  [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h,uint command);
  [DllImport("user32.dll",EntryPoint="FindWindowW",CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string cls,IntPtr title);
  [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);
+ [DllImport("user32.dll")] public static extern bool MoveWindow(IntPtr h,int x,int y,int w,int height,bool repaint);
  [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h,out Rect r);
  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);
  [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
@@ -32,10 +33,10 @@ function Managed-Command($h,$id) { if (-not [ShinyManagedUiTest]::PostMessage($h
 function Managed-Wait([scriptblock]$Condition,$Name,$Timeout=15000) { $end=[Environment]::TickCount64+$Timeout; do { if (& $Condition) {return}; Start-Sleep -Milliseconds 50 } while ([Environment]::TickCount64 -lt $end); throw "Managed UI condition timed out: $Name" }
 function Managed-Cli([string[]]$Command) { $json = & $cli @Command; if ($LASTEXITCODE) { throw 'Installed manager command failed' }; return ($json | ConvertFrom-Json) }
 function Managed-Status { return (Managed-Text ([ShinyManagedUiTest]::GetDlgItem($preview,106))) }
-function Managed-Snapshot($name) {
- $r=[ShinyManagedUiTest+Rect]::new(); if (-not [ShinyManagedUiTest]::GetClientRect($preview,[ref]$r)) {throw 'No preview rectangle'}
+function Managed-Snapshot($name,$window=$preview) {
+ $r=[ShinyManagedUiTest+Rect]::new(); if (-not [ShinyManagedUiTest]::GetClientRect($window,[ref]$r)) {throw 'No preview rectangle'}
  $b=[Drawing.Bitmap]::new($r.Right,$r.Bottom); $g=[Drawing.Graphics]::FromImage($b); $dc=$g.GetHdc()
- try { if (-not [ShinyManagedUiTest]::PrintWindow($preview,$dc,3)) {throw 'Preview screenshot failed'} } finally {$g.ReleaseHdc($dc);$g.Dispose()}
+ try { if (-not [ShinyManagedUiTest]::PrintWindow($window,$dc,3)) {throw 'Preview screenshot failed'} } finally {$g.ReleaseHdc($dc);$g.Dispose()}
  try {$b.Save((Join-Path $Output $name),[Drawing.Imaging.ImageFormat]::Png)} finally {$b.Dispose()}
 }
 function Open-ManagedPreview {
@@ -84,12 +85,59 @@ try {
  Managed-Command $main 110
  Managed-Wait { (Managed-Text ([ShinyManagedUiTest]::GetDlgItem($main,304))) -match '^Playing with libVLC' } 'primary replay'
  $passed.Add('preview stop/restart works and primary Stop tears down the preview without breaking replay')
+ $third = ($catalog.packages | Where-Object version -eq '1.2.0').digest
+ if (-not $third) {throw 'Adaptive detail package missing'}
+ $null = Managed-Cli @('--stage',$third)
+ $null = Managed-Cli @('--activate',$third)
+ Open-ManagedPreview
+ Managed-Wait { (Managed-Status) -match 'spatial reference version 3' -and (Managed-Status) -match 'Frames: [1-9]' } 'adaptive real decoded output'
+ Managed-Wait { (Managed-Text ([ShinyManagedUiTest]::GetDlgItem($preview,107))) -match 'Direct2D presentation' } 'Direct2D frame presentation'
+ Managed-Snapshot 'player-video-studio.png'
+ Managed-Command $preview 112
+ $canvas = [ShinyManagedUiTest]::GetDlgItem($preview,120)
+ Managed-Wait { (Managed-Text $canvas) -match 'Wipe comparison' } 'wipe view'
+ [void][ShinyManagedUiTest]::PostMessage($canvas,0x100,[IntPtr]0x24,[IntPtr]::Zero)
+ Managed-Wait { (Managed-Text $canvas) -match '0% source' } 'keyboard wipe start'
+ [void][ShinyManagedUiTest]::PostMessage($canvas,0x100,[IntPtr]0x23,[IntPtr]::Zero)
+ Managed-Wait { (Managed-Text $canvas) -match '100% source' } 'keyboard wipe end'
+ [void][ShinyManagedUiTest]::PostMessage($canvas,0x100,[IntPtr]0x25,[IntPtr]::Zero)
+ Managed-Wait { (Managed-Text $canvas) -match '95% source' } 'keyboard wipe fine adjustment'
+ Managed-Snapshot 'player-wipe-comparison.png'
+ Managed-Command $preview 113
+ Managed-Wait { (Managed-Text $canvas) -eq 'Processed image, local SDR filter' } 'output view'
+ Managed-Command $preview 114
+ Managed-Wait { (Managed-Text $canvas) -eq 'Original decoded source image' } 'source view'
+ Managed-Command $preview 115
+ Managed-Wait { (Managed-Text ([ShinyManagedUiTest]::GetDlgItem($preview,115))) -eq 'Fit to view' } 'decoded pixel inspection'
+ Managed-Command $preview 115
+ Managed-Command $preview 111
+ $passed.Add('adaptive detail executes on real decoded frames; side-by-side, wipe, source, output and 1:1 controls work')
+ Managed-Command $preview 116
+ Managed-Wait { (Managed-Text ([ShinyManagedUiTest]::GetDlgItem($preview,107))) -match 'GDI\+ compatibility' } 'compatibility fallback presentation'
+ [void][ShinyManagedUiTest]::MoveWindow($preview,30,30,740,700,$true)
+ Start-Sleep -Milliseconds 200
+ Managed-Snapshot 'player-studio-compact.png'
+ Managed-Command $preview 116
+ Managed-Wait { (Managed-Text ([ShinyManagedUiTest]::GetDlgItem($preview,107))) -match 'Direct2D presentation' } 'Direct2D resource recreation'
+ $passed.Add('compatibility renderer remains available and Direct2D resumes after resize/resource recreation')
+ $managerExe = Join-Path (Split-Path $Executable -Parent) 'ShinyLibraryManager.exe'
+ $manager = Start-Process $managerExe -PassThru
+ try {
+  Managed-Wait { $manager.Refresh(); $manager.MainWindowHandle -ne [IntPtr]::Zero } 'themed libraries window'
+  Start-Sleep -Milliseconds 500
+  Managed-Snapshot 'player-library-manager.png' $manager.MainWindowHandle
+ } finally {
+  if ($manager.MainWindowHandle -ne [IntPtr]::Zero) {[void][ShinyManagedUiTest]::PostMessage($manager.MainWindowHandle,0x10,[IntPtr]::Zero,[IntPtr]::Zero)}
+  if (-not $manager.WaitForExit(10000)) {$manager.Kill();throw 'Library manager failed to close'}
+ }
+ [void][ShinyManagedUiTest]::PostMessage($preview,0x10,[IntPtr]::Zero,[IntPtr]::Zero)
+ Managed-Wait { -not [ShinyManagedUiTest]::IsWindow($preview) } 'adaptive preview closes'
  $null = Managed-Cli @('--original')
  Open-ManagedPreview
  Managed-Wait { (Managed-Status) -match '^No package selected' } 'original fallback without false active state'
  if (-not [ShinyManagedUiTest]::IsWindow($main)) {throw 'Original selection destroyed the primary player'}
  $passed.Add('original selection leaves primary playback available and reports no package instead of fake enhancement')
- @{ passed=$passed; versionsProcessed=2; source='actual libVLC-decoded synthetic fixture'; dlss=$false; physicalGpuValidated=$false; primaryAudioSynchronized=$false } | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-managed-report.json')
+ @{ passed=$passed; versionsProcessed=3; direct2D=$true; compatibilityRenderer=$true; comparisonModes=4; source='actual libVLC-decoded synthetic fixture'; dlss=$false; physicalGpuValidated=$false; primaryAudioSynchronized=$false } | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-managed-report.json')
 } catch {
  $failure = $_
  @{ passed=$passed; previewStatus=(Managed-Status); error=$failure.Exception.Message } | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $Output 'ui-managed-failure.json')

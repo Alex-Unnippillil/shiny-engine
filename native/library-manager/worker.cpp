@@ -36,7 +36,7 @@ module.value=LoadLibraryExW(dll.c_str(),nullptr,LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR
  if(!abi||!revision||!process||abi()!=1)return 3;
  wire::Greeting greeting;
 greeting.revision=revision();
- if((manifest.version=="1.0.0"?1u:manifest.version=="1.1.0"?2u:0u)!=greeting.revision)return 3;
+ if((manifest.version=="1.0.0"?1u:manifest.version=="1.1.0"?2u:manifest.version=="1.2.0"?3u:0u)!=greeting.revision)return 3;
  std::copy(id.begin(),id.end(),greeting.package.begin());
 auto input=GetStdHandle(STD_INPUT_HANDLE),output=GetStdHandle(STD_OUTPUT_HANDLE);
  if(GetFileType(input)!=FILE_TYPE_PIPE||GetFileType(output)!=FILE_TYPE_PIPE)return 2;

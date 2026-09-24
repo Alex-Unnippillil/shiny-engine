@@ -1,6 +1,6 @@
 # Enhancement Libraries — local management guide
 
-Shiny Player 0.8 adds a persistent native library manager and an independent video preview. It manages **two first-party spatial reference DLL versions**, not NVIDIA DLSS. Imported NVIDIA/Streamline files remain quarantined: the application does not yet contain a compatible vendor-DLSS video adapter. No vendor runtime, neural weight, online downloader or driver replacement is included.
+Shiny Player 0.9 adds a persistent native library manager and an independent video preview. It manages **three first-party spatial DLL versions**, not NVIDIA DLSS. Imported NVIDIA/Streamline files remain quarantined: the application does not yet contain a compatible vendor-DLSS video adapter. No vendor runtime, neural weight, online downloader or driver replacement is included.
 
 ## Use from the Windows player
 
@@ -8,9 +8,31 @@ Open **Tools > Enhancement libraries**. Choose **Import bundled**, select a refe
 
 Open a seekable local video, then **Tools > Managed spatial preview (not DLSS)**. Press **Start selected version**. The left and right images are the same decoded input frame before and after conventional sharpening. The preview becomes active only after an actual processed frame returns. **Stop preview** closes its worker; the main player retains its own video and audio. The main player's Stop, source replacement and window close also tear down the preview.
 
-This is an independent, muted, CPU-copy RGBA8 SDR comparison at up to 512 pixels on the longest side. It is not the primary player's video output, not synchronized to primary audio, not a zero-copy GPU implementation, and not certified real-time, HDR, temporal reconstruction or recovered detail. The displayed timing is CPU wall-clock worker round-trip time, not GPU execution time. Text and burned-in subtitles are part of the decoded picture; it is not a subtitle-aware restoration model.
+This is an independent, muted, CPU-copy RGBA8 SDR comparison at up to 960 pixels on the longest side, within 518,400 pixels (720 × 720 for square images). It is not the primary player's video output, not synchronized to primary audio, not a zero-copy GPU implementation, and not certified real-time, HDR, temporal reconstruction or recovered detail. The displayed timing is CPU wall-clock worker round-trip time, not GPU execution time. Text and burned-in subtitles are part of the decoded picture; it is not a subtitle-aware restoration model.
 
 Choose another package in the manager and reopen/start a preview to apply it. A running worker keeps its original verified files pinned and its package leased. **Roll back** selects the previous known-good package after another probe; repeating rollback is a no-op, not a version toggle. **Use original** clears the future-preview selection. Close an already-running independent preview to stop that worker immediately.
+
+## Video studio and Adaptive detail (0.9)
+
+The main toolbar now exposes **Video studio** and **Libraries**. The studio has
+side-by-side, wipe, source-only and processed-only views. Drag the wipe divider or
+focus the image and use Left/Right, Home/End. **Inspect 1:1** centers and crops the
+decoded preview at one image pixel per display pixel; it does not decode the original
+file at full resolution. **Compatibility renderer** switches from retained Direct2D
+presentation to GDI+; **Use Direct2D** recreates the presentation resources.
+
+Library **1.2.0 / Adaptive detail** applies a noise threshold to encoded SDR luma,
+limits detail changes to 12 code values, preserves RGB-channel differences using a
+shared offset, clamps to local/gamut bounds and leaves translucent neighborhoods
+unchanged. It does not denoise, upsample, recover detail or run a neural network.
+Versions 1.0.0 and 1.1.0 remain available for comparison and rollback.
+
+The p95 metric is a rolling window of up to 120 completed worker round trips.
+Superseded inputs count overwritten pending worker inputs, not every skipped decoder
+frame. Direct2D may use a hardware or software device. Frame processing still uses
+CPU copies. Windows screenshots use a compatible GDI+ paint path and do not establish
+hardware acceleration. The manager honors system high-contrast colors and preserves
+native control labels, keyboard navigation and focus indicators.
 
 ## Import and trust
 
@@ -56,13 +78,13 @@ These controls do not create a security boundary against a hostile process alrea
 
 ## Upgrade and uninstall
 
-Installer 0.8 uses the existing per-user application ID and includes the manager, worker and both exact-build bundles. No released 0.7 asset is overwritten. A rebuilt application can have different package hashes: previously imported bundles do not automatically gain approval in the new build. Import the new bundled versions, inspect/stage/select them, or choose Original. A stale selection fails closed in the worker and does not prevent ordinary VLC playback.
+Installer 0.9 uses the existing per-user application ID and includes the manager, worker and all three exact-build bundles. No released 0.7 asset is overwritten. A rebuilt application can have different package hashes: previously imported bundles do not automatically gain approval in the new build. Import the new bundled versions, inspect/stage/select them, or choose Original. A stale selection fails closed in the worker and does not prevent ordinary VLC playback.
 
 Uninstall removes installed program binaries and bundled reference files but deliberately retains the separate user library store. Do not automatically delete user-imported files during uninstall. Package removal is available in the manager for unselected, unleased packages; back up the store before manual deletion.
 
 ## Build and validation
 
-Use Visual Studio C++ tools, CMake 3.24+, Python 3 and the Windows SDK. The pinned SQLite source is public domain; the fetch script verifies the official SHA3-256 before extracting fixed filenames. The source build generates approvals from its own two first-party DLLs and embeds the final worker hash into its clients. Do not mix clients, workers and bundles from different builds.
+Use Visual Studio C++ tools, CMake 3.24+, Python 3 and the Windows SDK. The pinned SQLite source is public domain; the fetch script verifies the official SHA3-256 before extracting fixed filenames. The source build generates approvals from its own three first-party DLLs and embeds the final worker hash into its clients. Do not mix clients, workers and bundles from different builds.
 
 ```powershell
 python scripts/fetch-library-deps.py
@@ -71,4 +93,4 @@ cmake --build build/library-manager --config Release --parallel
 ctest --test-dir build/library-manager -C Release --output-on-failure
 ```
 
-The integrated player build is `scripts/Build-Windows.ps1`. GitHub Actions exercises the manager's real Windows processes, known-frame DLL probes, both versions, package leases, process-death recovery, CLI and native UI, as well as libVLC-decoded frames and installer use. Synthetic reference checks do not certify NVIDIA, trained models, hardware acceleration, physical audio devices or long-session quality.
+The integrated player build is `scripts/Build-Windows.ps1`. GitHub Actions exercises the manager's real Windows processes, known-frame DLL probes, all three versions, package leases, process-death recovery, CLI and native UI, as well as libVLC-decoded frames and installer use. Synthetic reference checks do not certify NVIDIA, trained models, hardware acceleration, physical audio devices or long-session quality.

@@ -1,4 +1,4 @@
-# Library-management implementation status — 0.8
+# Library-management implementation status — 0.9
 
 This implements the **local management and reference-backend path** of `VLC_LIBRARY_MANAGEMENT_PLAN.md`. The original plan and its release gates remain intact. It does not declare every vendor, hardware and distribution milestone complete.
 
@@ -8,10 +8,10 @@ This implements the **local management and reference-backend path** of `VLC_LIBR
 | Catalog / quarantine | Persistent SQLite schema, strict JSON1 manifests, content-addressed copies, separate build-pinned approvals, history, verify/stage/remove | No signed remote catalog, downloader or vendor publisher allowlist |
 | Safe file handling | Bounded copies, pinned file/ancestor handles, hardlink/reparse/remote-path rejection, named store mutex, shared/exclusive package leases | Not a hostile same-user/account security boundary |
 | Recovery | Pending import/delete journals, atomic selected/previous database transaction, last-known-good rollback, restart recovery | Broad filesystem/power-loss/OS certification remains hardware testing; tests distinguish process death from actual power loss |
-| Cold activation | Fixed isolated worker, build-bound executable integrity, worker-side bundle revalidation, versioned binary protocol, known-frame probe, no hot replacement | Only the two exact-build first-party reference DLLs implement this ABI |
+| Cold activation | Fixed isolated worker, build-bound executable integrity, worker-side bundle revalidation, versioned binary protocol, known-frame probe, no hot replacement | Only the three exact-build first-party reference DLLs implement this ABI |
 | Real video | Independent libVLC software-decoded RGBA8 frames processed through either reference DLL, matched source/output, original playback preserved, bounded frame queue and cancellation | Not a primary-output plugin, not audio-synchronized, not GPU/zero-copy, not DLSS/VSR/HDR/temporal neural rendering |
 | Native UX | Separate async manager window, typed CLI, player menu, independent preview controls, explicit selected-versus-active state | No automatic preview version switch or unattended update |
-| Packaging | Manager, worker, two reference bundles, pinned SQLite notices, per-user player installer, checksums and exact-commit evidence | Unsigned prerelease; certificate-backed signing and production online update service absent |
+| Packaging | Manager, worker, three spatial bundles, pinned SQLite notices, per-user player installer, checksums and exact-commit evidence | Unsigned prerelease; certificate-backed signing and production online update service absent |
 
 ## Mapping to the original gates
 
@@ -28,3 +28,13 @@ M4 has reproducible unsigned packaging and automated install/use/uninstall check
 The portable suites cover PE policy, strict schemas, bounded wire formats, two independent fixed golden outputs, alpha preservation, malformed input, store transitions, tamper rejection and injected exception recovery. Windows suites separately exercise real DLL workers, filesystem leases, simultaneous managers, UI actions and **abrupt process termination** at import/selection/delete boundaries. The integrated player test uses an actual VLC-decoded fixture frame, both DLL versions, a still-running original decoder and rollback. Windows installer tests repeat package import/stage/known-frame selection from the installed location.
 
 Use successful exact-commit GitHub Actions reports, not the existence of test source, as execution evidence. Failures block merging/release. The automated release policy now requires both library-manager matrix checks in addition to all existing browser, native Windows and VLC checks, and requires managed-video evidence and package payloads for 0.8+.
+
+## 0.9 refinement
+
+New native theme and card list, direct toolbar access, Direct2D comparison presentation
+with reusable bitmaps/premultiplied alpha and explicit GDI+ fallback, four comparison
+views and decoded-pixel inspection. New adaptive-detail ABI revision 3 has independent
+opaque golden tests, transparency/noise/step protections and a separate activation
+probe. Managed decoder uses the existing worker's bounded 960-edge/518,400-pixel budget.
+These changes do not turn the reference path into DLSS or primary audio-synchronized
+GPU processing. Physical-GPU and natural-video quality qualification remain outstanding.

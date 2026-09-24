@@ -40,7 +40,7 @@ void Window::applyDpi(UINT value){
 }
 void Window::create(){
  applyDpi(GetDpiForWindow(hwnd));
- createMenus();button(L"Open media",OPEN);button(L"Network stream",NETWORK);button(L"Compare video",COMPARE);button(L"Full VLC",FULLVLC);button(L"Full screen",FULLSCREEN);button(L"Cinema view",CINEMA);button(L"DLSS-NR research",NR);
+ createMenus();button(L"Open media",OPEN);button(L"Network stream",NETWORK);button(L"Video studio",MANAGEDPREVIEW);button(L"Libraries",LIBRARIES);button(L"Full screen",FULLSCREEN);button(L"Cinema view",CINEMA);button(L"DLSS-NR research",NR);
  primaryLabel=label(L"SOURCE / VLC LIVE ADJUSTMENTS",300);secondaryLabel=label(L"IMPORTED TREATMENT - PROVENANCE UNVERIFIED",301);
  video=CreateWindowW(L"STATIC",L"",WS_CHILD|WS_VISIBLE|WS_CLIPSIBLINGS|SS_BLACKRECT,0,0,100,100,hwnd,nullptr,nullptr,nullptr);
  treatmentVideo=CreateWindowW(L"STATIC",L"",WS_CHILD|WS_CLIPSIBLINGS|SS_BLACKRECT,0,0,100,100,hwnd,nullptr,nullptr,nullptr);
@@ -62,7 +62,7 @@ void Window::layout(){
  RECT r{};GetClientRect(hwnd,&r);const int w=MulDiv(r.right,96,dpi),h=MulDiv(r.bottom,96,dpi);
  auto a=workspaceLayout(w,h,cinema,treatment!=nullptr);
  auto pos=[&](int id,Box b){move(id,b.x,b.y,b.w,b.h);};
- const int toolbarIds[]={OPEN,NETWORK,COMPARE,FULLVLC,NR,CINEMA,FULLSCREEN};
+ const int toolbarIds[]={OPEN,NETWORK,MANAGEDPREVIEW,LIBRARIES,NR,CINEMA,FULLSCREEN};
  for(size_t i=0;i<a.toolbar.size();++i)pos(toolbarIds[i],a.toolbar[i]);
  auto videoPos=[&](HWND child,Box b){MoveWindow(child,units(b.x),units(b.y),units(std::max(1,b.w)),units(b.h),TRUE);};
  move(300,a.original.x,a.original.y-26,a.original.w,20);videoPos(video,a.original);

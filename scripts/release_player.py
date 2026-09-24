@@ -157,10 +157,22 @@ def verify_bundle(folder: Path, version: str, sha: str, run: dict, repository: s
             require({"ShinyLibraryManager.exe", "ShinyLibraryManagerCli.exe", "ShinyEnhancementWorker.exe",
                      "library-bundles/1.0.0/shiny_spatial.dll", "library-bundles/1.1.0/shiny_spatial.dll"} <= internal.keys(),
                     "Managed enhancement package incomplete")
+            if tuple(map(int, version.split('.'))) >= (0, 9, 0):
+                require("library-bundles/1.2.0/shiny_spatial.dll" in internal, "Adaptive detail bundle missing")
             managed = json.loads((folder / "managed-playback-report.json").read_text())
-            require(managed.get("versionsProcessed") == 2 and managed.get("originalPlaybackPreserved") is True
+            require(managed.get("versionsProcessed") == (3 if tuple(map(int, version.split('.'))) >= (0, 9, 0) else 2) and managed.get("originalPlaybackPreserved") is True
                     and managed.get("rollback") is True and managed.get("dlss") is False,
                     "Managed reference playback evidence missing or misleading")
+    if tuple(map(int, version.split('.'))) >= (0, 9, 0):
+        require({"ui-managed-report.json", "player-video-studio.png", "player-library-manager.png"} <= sums.keys(),
+                "Video studio evidence missing")
+        studio = json.loads((folder / "ui-managed-report.json").read_text(encoding="utf-8-sig"))
+        require(studio.get("versionsProcessed") == 3 and studio.get("direct2D") is True
+                and studio.get("compatibilityRenderer") is True and studio.get("comparisonModes") == 4,
+                "Video studio modes or presentation fallback unverified")
+        installed = json.loads((folder / "installer-report.json").read_text(encoding="utf-8-sig"))
+        require(installed.get("managedLibraryVersions") == 3 and installed.get("managedWorkerProbe") is True
+                and installed.get("uninstalled") is True, "All three installed backends and uninstall must be verified")
     return {**sums, "SHA256SUMS.txt": digest(folder / "SHA256SUMS.txt")}
 
 

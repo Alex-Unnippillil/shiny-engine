@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "nr_client.hpp"
+#include "preview_geometry.hpp"
 #include <malloc.h>
 #include <chrono>
 namespace shiny::player {
@@ -79,9 +80,10 @@ struct NrSource::Pixels {
  static void unlock(void* p,void*,void* const*){auto* self=static_cast<Pixels*>(p);uint64_t hash=1469598103934665603ull;for(uint32_t y=0;y<self->height;++y)for(uint32_t x=0;x<self->width*4;++x)if(x%4!=3){hash^=self->data[y*self->pitch+x];hash*=1099511628211ull;}if(hash!=self->hash){self->hash=hash;++self->frame;}self->mutex.unlock();}
  static void display(void*,void*){}
 };
-NrSource::NrSource(std::shared_ptr<VlcApi> api,const Item& item,uint32_t width,uint32_t height,int64_t at){
+NrSource::NrSource(std::shared_ptr<VlcApi> api,const Item& item,uint32_t width,uint32_t height,int64_t at,unsigned maxEdge){
  if(!width||!height||width>16384||height>16384)throw std::runtime_error("Invalid preview source dimensions.");
- auto ratio=std::min(1.,512./std::max(width,height));auto w=static_cast<uint32_t>(std::lround(width*ratio)),h=static_cast<uint32_t>(std::lround(height*ratio));
+ auto size=preview::sourceSize(width,height,maxEdge);
+ auto w=size[0],h=size[1];
  if(w<33||h<33)throw std::runtime_error("Video aspect ratio is too extreme for the native neural preview.");
  pixels=std::make_unique<Pixels>(w,h);engine=std::make_unique<Engine>(api,nullptr,true,true);api->SetCallbacks(engine->player,Pixels::lock,Pixels::unlock,Pixels::display,pixels.get());api->SetFormat(engine->player,"RV32",w,h,pixels->pitch);engine->open(item);
  (void)at; // Panel seeks when the decoder becomes seekable.
