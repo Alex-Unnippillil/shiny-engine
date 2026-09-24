@@ -65,6 +65,8 @@ jobs:
           Invoke-WebRequest 'https://download.videolan.org/pub/videolan/vlc/3.0.24/win64/vlc-3.0.24-win64.zip' -OutFile .deps/vlc.zip
           if ((Get-FileHash .deps/vlc.zip -Algorithm SHA256).Hash.ToLower() -ne 'fcf30850371ad10c9373cc4f0f4501e7dee49e3e9ae9f20c72fb2661a1ca6323') { throw 'Official VLC archive hash mismatch' }
           Expand-Archive .deps/vlc.zip .deps/runtime
+      - name: Fetch authenticated SQLite source for package management
+        run: python scripts/fetch-library-deps.py
       - name: Build and test native player
         shell: pwsh
         run: |
@@ -74,13 +76,14 @@ jobs:
           $runtime = Join-Path $PWD '.deps/runtime/vlc-3.0.24'
           $headers = Join-Path $PWD '.deps/vlc-source/include'
           $fixture = Join-Path $PWD '.deps/fixtures/moving-original.avi'
-          cmake -S native/vlc-player -B build/vlc -A x64 "-DVLC_INCLUDE_DIR=$headers" "-DVLC_TEST_RUNTIME=$runtime" "-DVLC_TEST_FIXTURE=$fixture" 2>&1 | Tee-Object artifacts/vlc/configure.log
+          cmake -S native/vlc-player -B build/vlc -A x64 "-DSHINY_SQLITE_SOURCE=$PWD/.deps/sqlite" "-DVLC_INCLUDE_DIR=$headers" "-DVLC_TEST_RUNTIME=$runtime" "-DVLC_TEST_FIXTURE=$fixture" 2>&1 | Tee-Object artifacts/vlc/configure.log
           if ($LASTEXITCODE) { throw 'Configure failed' }
           cmake --build build/vlc --config Release --parallel 2>&1 | Tee-Object artifacts/vlc/build.log
           if ($LASTEXITCODE) { throw 'Build failed' }
           ctest --test-dir build/vlc -C Release --output-on-failure 2>&1 | Tee-Object artifacts/vlc/tests.log
           $tests = $LASTEXITCODE
           Copy-Item build/vlc/playback-report.json artifacts/vlc/ -ErrorAction SilentlyContinue
+          Copy-Item build/vlc/managed-playback-report.json artifacts/vlc/ -ErrorAction SilentlyContinue
           Copy-Item build/vlc/vlc-decoded-frame.png artifacts/vlc/ -ErrorAction SilentlyContinue
           if ($tests) { throw 'Real VLC tests failed' }
           $image = Join-Path $PWD 'artifacts/vlc/player-desktop.png'
@@ -101,6 +104,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force artifacts/package/nr | Out-Null
           Copy-Item build/vlc/Release/ShinyVlcPlayer.exe artifacts/package/
+          python scripts/package-library-manager.py build/vlc/Release artifacts/package
+          if ($LASTEXITCODE) { throw 'Library manager package failed' }
           Copy-Item build/vlc/Release/nr/* artifacts/package/nr/ -Recurse
           Copy-Item native/vlc-player/README.md artifacts/package/
           Copy-Item native/vlc-player/THIRD_PARTY_NOTICES.md artifacts/package/
@@ -113,12 +118,12 @@ jobs:
           Copy-Item .deps/volk/LICENSE.md artifacts/package/nr/volk-LICENSE.txt
           Copy-Item .deps/vulkan/LICENSE.md artifacts/package/nr/Vulkan-Headers-LICENSE.txt
           Get-ChildItem artifacts/package -File -Recurse | Sort-Object FullName | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() + '  ' + [IO.Path]::GetRelativePath((Join-Path $PWD 'artifacts/package'), $_.FullName).Replace('\','/') } | Set-Content artifacts/package/SHA256SUMS.txt
-          Compress-Archive artifacts/package/* artifacts/vlc/ShinyPlayer-0.7.0-Windows-x64-Portable.zip
+          Compress-Archive artifacts/package/* artifacts/vlc/ShinyPlayer-0.8.0-Windows-x64-Portable.zip
           $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
           if (-not (Test-Path $iscc)) { throw 'Inno Setup compiler unavailable' }
           & $iscc /Qp "/DPackageDir=$PWD/artifacts/package" installers/windows/player.iss 2>&1 | Tee-Object artifacts/vlc/installer-build.log
           if ($LASTEXITCODE) { throw 'Windows installer compile failed' }
-          git archive --format=zip -o artifacts/vlc/ShinyPlayer-0.7.0-Source.zip HEAD
+          git archive --format=zip -o artifacts/vlc/ShinyPlayer-0.8.0-Source.zip HEAD
           git -C .deps/nr archive --format=zip -o ../../artifacts/vlc/OpenDLSS-NR-Pinned-Source.zip HEAD src shaders scripts LICENSE NOTICE
       - name: Exercise setup, cached verified VLC prerequisite, playback and uninstall
         shell: pwsh
@@ -133,7 +138,7 @@ jobs:
           if ($LASTEXITCODE -or $sha -notmatch '^[0-9a-f]{40}$') { throw 'Cannot determine source revision' }
           @{
             schema = 1
-            version = '0.7.0'
+            version = '0.8.0'
             source_sha = $sha
             source_tree = (git rev-parse 'HEAD^{tree}').Trim()
             repository = $env:GITHUB_REPOSITORY

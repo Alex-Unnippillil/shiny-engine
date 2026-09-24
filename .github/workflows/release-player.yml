@@ -1,14 +1,14 @@
 name: Publish verified player release
 on:
   workflow_run:
-    workflows: [VLC desktop player, Native Windows, Browser and package]
+    workflows: [VLC desktop player, Native Windows, Browser and package, VLC library audit]
     types: [completed]
 permissions:
   contents: read
   actions: read
   checks: read
 concurrency:
-  group: player-release-v0.7.0
+  group: player-release-v0.8.0
   cancel-in-progress: false
 jobs:
   publish:
