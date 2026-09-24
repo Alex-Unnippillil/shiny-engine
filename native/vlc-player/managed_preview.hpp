@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 #pragma once
 #include "nr_client.hpp"
+// Windows GDI+ rendering needs COM declarations even with WIN32_LEAN_AND_MEAN.
+#include <objidl.h>
 namespace shiny::player {
 void openLibraryManager(HWND owner);
 class ManagedPanel {

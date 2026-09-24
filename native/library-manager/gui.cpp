@@ -3,6 +3,7 @@
 #include "builtins.hpp"
 #include <algorithm>
 #include <windows.h>
+#include <shellapi.h>
 #include <shobjidl.h>
 #include <commctrl.h>
 #include <future>
