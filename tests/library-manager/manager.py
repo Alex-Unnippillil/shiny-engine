@@ -51,9 +51,12 @@ class Manager(unittest.TestCase):
 
     def test_two_real_dll_versions_probe_switch_restore(self):
         ids = self.bundled()
-        for identity in ids.values():
+        # Catalog rows are digest-sorted; build hashes have no version ordering.
+        for version in ('1.0.0', '1.1.0'):
+            identity = ids[version]
             self.assertTrue(self.cli('--probe', identity)['syntheticFrameProbePassed'])
             self.select(identity)
+        self.assertEqual(self.cli('--list')['selected'], ids['1.1.0'])
         r = self.cli('--rollback')
         self.assertEqual(r['selected'], ids['1.0.0'])
         self.assertEqual(self.cli('--rollback')['selected'], ids['1.0.0'])

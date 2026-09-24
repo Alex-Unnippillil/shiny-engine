@@ -78,11 +78,11 @@ struct ManagedPanel::Impl {
  }
  void draw(HDC dc){RECT rect{};GetClientRect(hwnd,&rect);SetBkMode(dc,TRANSPARENT);auto old=SelectObject(dc,font);
   RECT title{px(20),px(103),rect.right-px(20),px(140)};DrawTextW(dc,L"SOURCE FRAME                                      SPATIAL REFERENCE OUTPUT",-1,&title,DT_LEFT|DT_SINGLELINE|DT_END_ELLIPSIS);
-  if(image){Gdiplus::Graphics g(dc);const auto& frame=*image;int areaW=(rect.right-px(50))/2,areaH=std::max(1,rect.bottom-px(230));
-   auto draw=[&](const std::vector<uint8_t>& rgba,int left){std::vector<uint8_t> bgra=rgba;for(size_t n=0;n<bgra.size();n+=4)std::swap(bgra[n],bgra[n+2]);
+  if(image){Gdiplus::Graphics g(dc);const auto& frame=*image;int areaW=(rect.right-px(50))/2,areaH=std::max(1,static_cast<int>(rect.bottom)-px(230));
+   auto drawFrame=[&](const std::vector<uint8_t>& rgba,int left){std::vector<uint8_t> bgra=rgba;for(size_t n=0;n<bgra.size();n+=4)std::swap(bgra[n],bgra[n+2]);
     Gdiplus::Bitmap bitmap(static_cast<INT>(frame.header.width),static_cast<INT>(frame.header.height),static_cast<INT>(frame.header.width*4),PixelFormat32bppARGB,bgra.data());
     double ratio=std::min(double(areaW)/frame.header.width,double(areaH)/frame.header.height);int w=static_cast<int>(frame.header.width*ratio),h=static_cast<int>(frame.header.height*ratio);g.DrawImage(&bitmap,left+(areaW-w)/2,px(148)+(areaH-h)/2,w,h);
-   };draw(frame.original,px(20));draw(frame.enhanced,px(30)+areaW);
+   };drawFrame(frame.original,px(20));drawFrame(frame.enhanced,px(30)+areaW);
   }SelectObject(dc,old);
  }
  static LRESULT CALLBACK proc(HWND h,UINT m,WPARAM w,LPARAM l){auto* p=reinterpret_cast<Impl*>(GetWindowLongPtrW(h,GWLP_USERDATA));
