@@ -1,0 +1,33 @@
+{
+  "screenshotSha256": "af575abfa20b531f6e087e25d44e08bad093082fffc8f04b00bfc7598f529679",
+  "media": "10-second silent still-image clip; bicubic resize to 1280x742 and JPEG quality 96",
+  "credit": "NASA, ESA, CSA, STScI",
+  "playerSourceSha": "1957df8453bc26d341a1e47976d1e034f8f46d9c",
+  "diagnostics": {
+    "schema": 1,
+    "app": "0.10.0",
+    "runtime": "3.0.24 Vetinari",
+    "width": 1280,
+    "height": 742,
+    "decodedVideoFrames": 258,
+    "displayedFrames": 113,
+    "lostPictures": 0,
+    "importedComparison": false,
+    "driverSuperResolutionRequested": false,
+    "driverSuperResolutionVerified": false,
+    "nativeNrModelApproved": false,
+    "dlss5Inference": false,
+    "limitation": "Main-player metrics only. Separate neural experiments have their own reports. No hardware speed certification or frame-exact dual-player sync. No paths or URLs included."
+  },
+  "sourcePage": "https://science.nasa.gov/asset/webb/cosmic-cliffs-in-the-carina-nebula-nircam-image/",
+  "purpose": "README presentation, not enhancement evidence",
+  "appVersion": "0.10.0",
+  "captureRun": "36067821462",
+  "screenshotWidth": 1028,
+  "sourceSha256": "4341ffd8a597959ef97857239971170707be77e3ce0ae8c7e9e782f078dfe2ed",
+  "capture": "Unmodified player --ui-smoke / PrintWindow client-area capture; no post-capture editing or compositing",
+  "sourceUrl": "https://assets.science.nasa.gov/dynamicimage/assets/science/missions/webb/science/2022/07/STScI-01GA6KKWG229B16K4Q38CH3BXS.png?crop=faces%2Cfocalpoint&fit=clip&h=1158&w=2000",
+  "playerPackageSha256": "3d164076c8b8cc1b442e1dae5e4e2abf95ef48c6417ccc319fdb9d3a6b24bb3f",
+  "screenshotHeight": 729,
+  "schema": 1
+}
