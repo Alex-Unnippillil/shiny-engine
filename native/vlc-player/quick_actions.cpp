@@ -41,8 +41,9 @@ struct Palette {
         RECT r{}; GetClientRect(hwnd, &r); const auto p = [&](int x) { return theme.px(x); };
         auto move = [&](int id, int x, int y, int w, int h) { MoveWindow(GetDlgItem(hwnd,id),p(x),p(y),p(w),p(h),TRUE); };
         int width = MulDiv(r.right,96,static_cast<int>(theme.dpi));
-        move(Search,24,98,width-48,32); move(Results,24,146,width-48,268);
-        move(Hint,24,428,width-48,32); move(IDCANCEL,width-242,474,102,36); move(IDOK,width-128,474,104,36);
+        int height = MulDiv(r.bottom,96,static_cast<int>(theme.dpi));
+        move(Search,24,98,width-48,32); move(Results,24,146,width-48,std::max(30,height-264));
+        move(Hint,24,height-104,width-48,32); move(IDCANCEL,width-242,height-58,102,36); move(IDOK,width-128,height-58,104,36);
     }
     static LRESULT CALLBACK proc(HWND h, UINT m, WPARAM w, LPARAM l) {
         auto* self = reinterpret_cast<Palette*>(GetWindowLongPtrW(h,GWLP_USERDATA));
@@ -111,7 +112,8 @@ std::optional<int> quickActions(HWND owner,const std::vector<QuickAction>& actio
     RECT size{0,0,MulDiv(660,static_cast<int>(dpi),96),MulDiv(532,static_cast<int>(dpi),96)};
     AdjustWindowRectExForDpi(&size,WS_CAPTION|WS_SYSMENU|WS_POPUP,FALSE,WS_EX_DLGMODALFRAME,dpi);
     MONITORINFO monitor{sizeof(monitor)};GetMonitorInfoW(MonitorFromWindow(owner,MONITOR_DEFAULTTONEAREST),&monitor);
-    int width=size.right-size.left,height=size.bottom-size.top;
+    int width=static_cast<int>(std::min(size.right-size.left,monitor.rcWork.right-monitor.rcWork.left));
+    int height=static_cast<int>(std::min(size.bottom-size.top,monitor.rcWork.bottom-monitor.rcWork.top));
     int x=std::max(monitor.rcWork.left,std::min(anchor.left+(anchor.right-anchor.left-width)/2,monitor.rcWork.right-width));
     int y=std::max(monitor.rcWork.top,std::min(anchor.top+40,monitor.rcWork.bottom-height));
     EnableWindow(owner,FALSE);
