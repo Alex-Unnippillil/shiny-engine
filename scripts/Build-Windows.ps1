@@ -69,7 +69,7 @@ try {
   Copy-Item .deps/volk/LICENSE.md $package/nr/volk-LICENSE.txt
   Copy-Item .deps/vulkan/LICENSE.md $package/nr/Vulkan-Headers-LICENSE.txt
   Get-ChildItem $package -File -Recurse | Sort-Object FullName | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.FullName.Substring($package.Length + 1).Replace('\','/') } | Set-Content "$package/SHA256SUMS.txt"
-  Compress-Archive $package/* artifacts/vlc/ShinyPlayer-0.9.0-Windows-x64-Portable.zip -Force
+  Compress-Archive $package/* artifacts/vlc/ShinyPlayer-0.10.0-Windows-x64-Portable.zip -Force
   if (-not $SkipInstaller) {
     $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
     if (-not (Test-Path $iscc)) { throw 'Install Inno Setup 6, or pass -SkipInstaller to produce only the portable package.' }

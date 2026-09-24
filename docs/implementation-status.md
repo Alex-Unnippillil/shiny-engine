@@ -1,8 +1,10 @@
-# Implementation status — 0.9.0
+# Implementation status — 0.10.0
 
 The library-management update is described in [library-manager-status.md](library-manager-status.md): persistent local catalog/quarantine, cold selection and rollback of exact-build spatial reference DLLs, and an independent VLC-decoded comparison preview. This is not a new NVIDIA DLSS backend or completion of hardware/signing gates.
 
 0.9 adds the themed Libraries and Video studio, four comparison modes, retained Direct2D presentation with GDI+ fallback, a bounded higher-resolution managed preview, and a third adaptive SDR spatial library. See `release-0.9.md`; no new DLSS, hardware or primary-audio claim is made.
+
+0.10 modernizes the main workspace with a welcome state, quick-action search, title-filtered queue, dedicated adjustment view, shared theme and control-aware keyboard routing. See [workspace guide](workspace-guide.md). Processing and trust policies are unchanged.
 
 # Prior 0.7.0 component baseline
 

@@ -22,7 +22,7 @@ for version in ('1.0.0', '1.1.0', '1.2.0'):
         raise RuntimeError('Build bundle no longer matches its generated manifest')
     for name in ('manifest.json', 'shiny_spatial.dll'):
         shutil.copyfile(folder / name, target / name)
-for name in ('library-manager-guide.md', 'library-manager-status.md'):
+for name in ('library-manager-guide.md', 'library-manager-status.md', 'workspace-guide.md'):
     shutil.copyfile(root / 'docs' / name, destination / name)
 shutil.copyfile(root / 'LICENSE', destination / 'ShinyLibraryManager-LICENSE.txt')
 shutil.copyfile(root / 'native/library-manager/THIRD_PARTY_NOTICES.md', destination / 'ShinyLibraryManager-NOTICES.md')

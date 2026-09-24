@@ -2,16 +2,28 @@
 #include "ui.hpp"
 namespace shiny::ui {
 void Window::action(int id){
+ if(id==COMMANDS){showCommands();return;}
+ if(id==WELCOMEOPEN){action(engine?OPEN:LOCATE);return;}
+ if(id==WELCOMENET){action(NETWORK);return;}
+ if(id==SHOWQUEUE||id==SHOWFX){
+  showAdjustments=id==SHOWFX;cinema=false;SetWindowTextW(GetDlgItem(hwnd,CINEMA),L"Cinema view");layout();
+  if(IsWindowVisible(queueBox)&&id==SHOWQUEUE)SetFocus(GetDlgItem(hwnd,QUEUESEARCH));
+  else if(id==SHOWQUEUE)message(L"Use Playback > Choose queued item in compact windows; expand the window for title filtering.");
+  else if(!IsWindowVisible(GetDlgItem(hwnd,FXENABLE)))message(L"Expand the window to use live adjustment controls.");
+  return;
+ }
+ if(id==CLEAR){managed.reset();neural.reset();bookmarks.clear();closeComparison();if(engine)engine->stop();queue.clear();loop.clear();endHandled=true;SetWindowTextW(GetDlgItem(hwnd,QUEUESEARCH),L"");refreshQueue();SetWindowTextW(hwnd,L"Shiny Player");message(L"Queue cleared. No media history is retained.");updateWorkspace();return;}
+
  if(id>=QUEUEFIRST&&id<QUEUEFIRST+1000){select(static_cast<size_t>(id-QUEUEFIRST));return;}
  if(id==CINEMA){cinema=!cinema;SetWindowTextW(GetDlgItem(hwnd,CINEMA),cinema?L"Show workspace":L"Cinema view");layout();return;}
  if(id==TOPMOST){topmost=!topmost;SetWindowPos(hwnd,topmost?HWND_TOPMOST:HWND_NOTOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE);CheckMenuItem(menu,TOPMOST,MF_BYCOMMAND|(topmost?MF_CHECKED:0));return;}
  if(id==OPEN){addFiles(pick(hwnd,true));return;}
  if(id==LOCATE){auto files=pick(hwnd,false,true);if(!files.empty())loadRuntime(files[0]);return;}
- if(id==NETWORK){auto s=input(hwnd,L"Open network media",L"Explicit HTTP(S), RTSP, RTP, UDP or SRT media URL. No page scraping.");if(s){if(!network(*s))throw std::runtime_error("Enter a network URL, not a local path.");queue.add({*s,L"Network stream",true});SendMessageW(queueBox,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"Network stream"));select(queue.items.size()-1);}return;}
+ if(id==NETWORK){auto s=input(hwnd,L"Open network media",L"Explicit HTTP(S), RTSP, RTP, UDP or SRT media URL. No page scraping.");if(s){if(!network(*s))throw std::runtime_error("Enter a network URL, not a local path.");queue.add({*s,L"Network stream",true});refreshQueue();select(queue.items.size()-1);}return;}
  if(id==FULLSCREEN){fullscreenToggle();return;}
  if(id==VSR){driverSuper=!driverSuper;CheckMenuItem(menu,VSR,MF_BYCOMMAND|(driverSuper?MF_CHECKED:MF_UNCHECKED));message(driverSuper?L"Driver super resolution requested for the NEXT media open. Uses VLC D3D11; hardware success unverified. Not DLSS 5.":L"Automatic VLC scaling selected for the NEXT media open.");return;}
  if(id==DLSS){MessageBoxW(hwnd,L"DLSS-NR local research mode\n\nOpen a local video, choose DLSS-NR research, enable Local research mode and inspect your model folder. After validation, acknowledge that you have permission to use the model and understand that output is experimental. Prepare then invokes the actual native OpenDLSS-NR graph with your model.\n\nTone, structure and mix controls affect the experimental preview. Original playback stays separate. Model files are not supplied or downloaded. No user-selected model is marked production-approved.\n\nThis is independent-frame SDR research, not certified real-time, temporal DLSS, recovered ground-truth detail or an NVIDIA-supported product. RTX VSR and ordinary VLC filters remain different features.",L"DLSS-NR — local research",MB_OK|MB_ICONINFORMATION);return;}
- if(id==ABOUT){MessageBoxW(hwnd,L"Shiny Player 0.9.0 — powered by libVLC\nIndependent of VideoLAN and NVIDIA.\n\nSpace: play/pause  ·  S: stop  ·  E: next frame\nLeft/Right: seek 5 s  ·  Shift+Left/Right: 30 s\nN/P: next/previous  ·  M: mute  ·  F: fullscreen\nC: cinema  ·  B: bookmark  ·  J: jump to time\n[ / ]: A/B loop  ·  Esc: leave fullscreen or stop\nCtrl+O: files  ·  Ctrl+N: network\n\nFull VLC opens the original installed interface for advanced features not duplicated here. This custom player is not complete VLC UI parity.\n\nlibVLC is LGPL-2.1-or-later. See THIRD_PARTY_NOTICES.md. No media history or remote telemetry is retained.",L"About Shiny Player",MB_OK);return;}
+ if(id==ABOUT){MessageBoxW(hwnd,L"Shiny Player 0.10.0 — powered by libVLC\nIndependent of VideoLAN and NVIDIA.\n\nSpace: play/pause  ·  S: stop  ·  E: next frame\nLeft/Right: seek 5 s  ·  Shift+Left/Right: 30 s\nN/P: next/previous  ·  M: mute  ·  F: fullscreen\nC: cinema  ·  B: bookmark  ·  J: jump to time\n[ / ]: A/B loop  ·  Esc: leave fullscreen or stop\nCtrl+O: files  ·  Ctrl+N: network\nCtrl+K: quick actions  ·  Ctrl+F: queue filter  ·  F1: help\nQueue: Enter plays, Delete removes; arrows navigate without seeking.\n\nFull VLC opens the original installed interface for advanced features not duplicated here. This custom player is not complete VLC UI parity.\n\nlibVLC is LGPL-2.1-or-later. See THIRD_PARTY_NOTICES.md. No media history or remote telemetry is retained.",L"About Shiny Player",MB_OK);return;}
  if(id==LIBRARIES){openLibraryManager(hwnd);return;}
  if(!engine)throw std::runtime_error("Install official 64-bit VLC 3.0.24+ in the 3.0 series, then use Media > Locate installed VLC.");
  if(id==MANAGEDPREVIEW){
@@ -23,14 +35,22 @@ void Window::action(int id){
  if(id==JUMP){auto value=input(hwnd,L"Go to time",L"Enter seconds or HH:MM:SS. This does not change the source.",L"0");if(value)seek(parseTime(*value));return;}
  if(id==BOOKMARK){if(!engine->seekable())throw std::runtime_error("Bookmarks require seekable media.");if(bookmarks.size()>=100)throw std::runtime_error("This session already has 100 bookmarks.");bookmarks.push_back(engine->time());message(L"Bookmark added at "+clock(engine->time())+L". Bookmarks remain in memory for this source only.");return;}
  if(id==MEDIAINFO){unsigned w=0,h=0;api->VideoSize(engine->player,0,&w,&h);auto msg=L"libVLC "+wide(api->runtimeVersion)+L"\n\nVideo: "+std::to_wstring(w)+L" × "+std::to_wstring(h)+L"\nDuration: "+clock(engine->length())+L"\nSeekable: "+(engine->seekable()?L"yes":L"no")+L"\nAudio tracks: "+std::to_wstring(engine->tracks(true).size())+L"\nSubtitle tracks: "+std::to_wstring(engine->tracks(false).size())+L"\n\nNative OpenDLSS graph is packaged separately. Trained inference requires a validated local model, explicit research consent or curated approval, and a supported GPU.\nNo paths or credentials are shown here.";MessageBoxW(hwnd,msg.c_str(),L"Media information",MB_OK);return;}
- if(id==QUEUEUP||id==QUEUEDOWN){auto at=SendMessageW(queueBox,LB_GETCURSEL,0,0);if(at==LB_ERR)return;auto next=at+(id==QUEUEUP?-1:1);if(next<0||static_cast<size_t>(next)>=queue.items.size())return;std::swap(queue.items[at],queue.items[next]);if(queue.selected==static_cast<size_t>(at))queue.selected=static_cast<size_t>(next);else if(queue.selected==static_cast<size_t>(next))queue.selected=static_cast<size_t>(at);SendMessageW(queueBox,LB_RESETCONTENT,0,0);for(auto& item:queue.items)SendMessageW(queueBox,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(item.title.c_str()));SendMessageW(queueBox,LB_SETCURSEL,next,0);return;}
+ if(id==QUEUEUP||id==QUEUEDOWN){
+  auto at=queueIndex();if(!at)return;if(!queueFilter.empty()){message(L"Clear the title filter before reordering the full queue.");return;}
+  if((id==QUEUEUP&&*at==0)||(id==QUEUEDOWN&&*at+1>=queue.items.size()))return;
+  auto next=id==QUEUEUP?*at-1:*at+1;std::swap(queue.items[*at],queue.items[next]);
+  if(queue.selected==*at)queue.selected=next;else if(queue.selected==next)queue.selected=*at;
+  refreshQueue(next);return;
+ }
  if(id>=BOOKMARKFIRST&&id<BOOKMARKFIRST+100){auto n=static_cast<size_t>(id-BOOKMARKFIRST);if(n<bookmarks.size())seek(bookmarks[n]);return;}
  if(id>=DEVICEFIRST&&id<DEVICEFIRST+100){auto n=static_cast<size_t>(id-DEVICEFIRST);if(n<audioDevices.size())api->SetDevice(engine->player,nullptr,audioDevices[n].empty()?nullptr:audioDevices[n].c_str());message(L"Audio device requested. Availability depends on the active output module.");return;}
  if(id==PLAY){playPause();return;}
  if(id==STOP){managed.reset();neural.reset();closeComparison();engine->stop();loop.clear();endHandled=true;message(L"Playback stopped.");return;}
  if(id==PREV||id==NEXT){auto n=id==PREV?queue.previous():queue.next();if(n)select(*n);return;}
- if(id==CLEAR){managed.reset();neural.reset();bookmarks.clear();closeComparison();engine->stop();queue.clear();loop.clear();endHandled=true;SendMessageW(queueBox,LB_RESETCONTENT,0,0);SetWindowTextW(hwnd,L"Shiny Player");message(L"Queue cleared. No media history is retained.");return;}
- if(id==REMOVE){auto i=SendMessageW(queueBox,LB_GETCURSEL,0,0);if(i==LB_ERR)return;if(queue.selected==static_cast<size_t>(i)){managed.reset();neural.reset();bookmarks.clear();closeComparison();engine->stop();endHandled=true;loop.clear();}queue.erase(static_cast<size_t>(i));SendMessageW(queueBox,LB_DELETESTRING,i,0);return;}
+ if(id==REMOVE){auto index=queueIndex();if(!index)return;
+  if(queue.selected==*index){managed.reset();neural.reset();bookmarks.clear();closeComparison();engine->stop();endHandled=true;loop.clear();}
+  queue.erase(*index);refreshQueue();updateWorkspace();return;
+ }
  if(id==SAVEQUEUE){if(queue.items.empty())throw std::runtime_error("The queue is empty.");if(MessageBoxW(hwnd,L"The exported playlist includes file paths and network URLs, which may contain private information. Save it?",L"Export playlist",MB_OKCANCEL|MB_ICONINFORMATION)!=IDOK)return;auto f=pick(hwnd,false,false,true,L"m3u8");if(!f.empty()){std::ofstream out(f[0],std::ios::binary);out<<"#EXTM3U\n";for(auto& item:queue.items)out<<utf8(item.source)<<'\n';if(!out)throw std::runtime_error("Cannot export queue.");}return;}
  if(id==MUTE){mutedAudio=!mutedAudio;api->SetMute(engine->player,mutedAudio);SetWindowTextW(GetDlgItem(hwnd,MUTE),mutedAudio?L"Unmute":L"Mute");return;}
  if(id==REPEAT||id==SHUFFLE){bool& value=id==REPEAT?queue.repeat:queue.shuffle;value=!value;CheckMenuItem(menu,id,MF_BYCOMMAND|(value?MF_CHECKED:MF_UNCHECKED));return;}

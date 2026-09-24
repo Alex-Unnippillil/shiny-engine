@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$installer = Join-Path $PWD 'artifacts/vlc/ShinyPlayer-0.9.0-Windows-x64-Setup.exe'
+$installer = Join-Path $PWD 'artifacts/vlc/ShinyPlayer-0.10.0-Windows-x64-Setup.exe'
 $temporaryRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [IO.Path]::GetTempPath() }
 $target = Join-Path $temporaryRoot ('ShinyPlayer-Installer-Test-' + [guid]::NewGuid().ToString('N'))
 $proof = Join-Path $PWD 'artifacts/vlc'
@@ -16,7 +16,7 @@ foreach ($path in @('ShinyVlcPlayer.exe','ShinyLibraryManager.exe','ShinyLibrary
 $fixture = Join-Path $PWD '.deps/fixtures/moving-original.avi'
 Run-Checked (Join-Path $target 'ShinyVlcPlayer.exe') @('--ui-smoke',('"'+$fixture+'"'),('"'+$proof+'\installed-player.png"')) 30000
 $ui = Get-Content (Join-Path $proof 'ui-playback.json') -Raw | ConvertFrom-Json
-if ($ui.app -ne '0.9.0' -or $ui.decodedVideoFrames -lt 1) { throw 'Installed player did not decode video' }
+if ($ui.app -ne '0.10.0' -or $ui.decodedVideoFrames -lt 1) { throw 'Installed player did not decode video' }
 $store = Join-Path $temporaryRoot ('ShinyManager-Installed-Test-' + [guid]::NewGuid().ToString('N'))
 try {
   $cli = Join-Path $target 'ShinyLibraryManagerCli.exe'

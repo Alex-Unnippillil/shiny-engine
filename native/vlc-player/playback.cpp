@@ -5,13 +5,13 @@ void Window::loadRuntime(const std::filesystem::path& folder){
  if(api)throw std::runtime_error("Restart the player to change VLC installations.");auto next=VlcApi::load(folder);auto nextEngine=std::make_unique<Engine>(next,video);engine=std::move(nextEngine);api=std::move(next);message(L"Ready · libVLC "+wide(api->runtimeVersion)+L" · local processing · local neural research requires your model");
 }
 void Window::addFiles(const std::vector<std::filesystem::path>& files){
- size_t first=queue.items.size();for(auto& p:files){auto full=std::filesystem::absolute(p);if(!std::filesystem::is_regular_file(full))continue;queue.add({full.wstring(),full.filename().wstring(),false});SendMessageW(queueBox,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(queue.items.back().title.c_str()));}if(queue.items.size()>first)select(first);
+ size_t first=queue.items.size();for(auto& p:files){auto full=std::filesystem::absolute(p);if(!std::filesystem::is_regular_file(full))continue;queue.add({full.wstring(),full.filename().wstring(),false});}refreshQueue();if(queue.items.size()>first)select(first);
 }
 void Window::closeComparison(){if(treatment){treatment.reset();syncPending=false;layout();if(engine){engine->effects=adjustments;engine->applyEffects();}}}
 void Window::select(size_t index){
  if(!engine)throw std::runtime_error("Install or locate VLC first.");if(index>=queue.items.size())return;
  managed.reset();neural.reset();bookmarks.clear();closeComparison();if(engine->driverSuperResolutionRequested!=driverSuper){auto replacement=std::make_unique<Engine>(api,video,false,false,driverSuper);engine=std::move(replacement);}engine->open(queue.items[index]);queue.choose(index);loop.clear();endHandled=false;fxApplied=false;
- engine->api->SetRate(engine->player,playbackRate);engine->api->SetVolume(engine->player,volume);engine->api->SetMute(engine->player,mutedAudio?1:0);engine->equalizer(eqIndex);SendMessageW(queueBox,LB_SETCURSEL,index,0);SetWindowTextW(hwnd,(L"Shiny Player — "+queue.items[index].title).c_str());message(L"Opening media with VLC...");
+ engine->api->SetRate(engine->player,playbackRate);engine->api->SetVolume(engine->player,volume);engine->api->SetMute(engine->player,mutedAudio?1:0);engine->equalizer(eqIndex);refreshQueue(index);SetWindowTextW(hwnd,(L"Shiny Player — "+queue.items[index].title).c_str());message(L"Opening media with VLC...");updateWorkspace();
 }
 void Window::playPause(){if(!engine)return;bool pause=engine->playing();auto st=api->State(engine->player);if(st==libvlc_Stopped||st==libvlc_Ended||st==libvlc_NothingSpecial){if(queue.selected)select(*queue.selected);else if(!queue.items.empty())select(0);return;}engine->pause(pause);if(treatment)treatment->pause(pause);}
 void Window::seek(int64_t t){if(!engine)return;if(!engine->seek(t)){message(L"This source is not seekable.");return;}if(treatment)treatment->seek(t);}
@@ -56,15 +56,31 @@ void Window::tick(){
   if(st==libvlc_Ended&&!endHandled){endHandled=true;auto n=queue.next(true);if(n)select(*n);else message(L"Playback finished.");}
   if(st==libvlc_Error&&!endHandled){endHandled=true;closeComparison();message(L"VLC could not decode this source. Choose another file or use Full VLC for advanced setup.");}
  }
+ updateWorkspace();
  if(smoke&&GetTickCount64()-started>5000){KillTimer(hwnd,1);try{diagnostics(smokeImage.parent_path()/L"ui-playback.json");if(!engine||!api->HasVideo(engine->player)||!saveWindow(hwnd,smokeImage))smokeExit=1;}catch(...){smokeExit=1;}PostMessageW(hwnd,WM_CLOSE,0,0);}
 }
 bool Window::key(MSG& msg){
  if(GetAncestor(msg.hwnd,GA_ROOT)!=hwnd||msg.message!=WM_KEYDOWN)return false;
- if(msg.wParam==VK_ESCAPE){if(fullscreen)fullscreenToggle();else action(STOP);return true;}
- wchar_t cls[64]{};GetClassNameW(msg.hwnd,cls,64);if(std::wstring(cls)==L"Edit"||std::wstring(cls)==L"ComboBox"||std::wstring(cls)==TRACKBAR_CLASSW)return false;if(std::wstring(cls)==L"Button"&&msg.wParam==VK_SPACE)return false;
- bool ctrl=(GetKeyState(VK_CONTROL)&0x8000)!=0;int id=0;if(ctrl&&msg.wParam=='O')id=OPEN;else if(ctrl&&msg.wParam=='N')id=NETWORK;else if(ctrl)return false;
- else switch(msg.wParam){case VK_SPACE:id=PLAY;break;case 'S':id=STOP;break;case 'E':id=FRAME;break;case 'C':id=CINEMA;break;case 'B':id=BOOKMARK;break;case 'J':id=JUMP;break;case 'F':id=FULLSCREEN;break;case 'M':id=MUTE;break;case 'N':id=NEXT;break;case 'P':id=PREV;break;case VK_OEM_4:id=LOOPA;break;case VK_OEM_6:id=LOOPB;break;case VK_LEFT:case VK_RIGHT:if(engine)seek(engine->time()+(msg.wParam==VK_LEFT?-1:1)*((GetKeyState(VK_SHIFT)&0x8000)?30000:5000));return true;}
+ bool ctrl=(GetKeyState(VK_CONTROL)&0x8000)!=0;
+ if(ctrl&&(msg.wParam=='K'||msg.wParam=='F'||msg.wParam=='O'||msg.wParam=='N')){
+  action(msg.wParam=='K'?COMMANDS:msg.wParam=='F'?SHOWQUEUE:msg.wParam=='O'?OPEN:NETWORK);return true;
+ }
+ if(msg.wParam==VK_F1){action(ABOUT);return true;}
+ if(msg.wParam==VK_ESCAPE){
+  if(msg.hwnd==GetDlgItem(hwnd,QUEUESEARCH)&&!queueFilter.empty()){SetWindowTextW(msg.hwnd,L"");return true;}
+  if(fullscreen)fullscreenToggle();else if(engine)action(STOP);return true;
+ }
+ if(msg.hwnd==queueBox){
+  if(msg.wParam==VK_RETURN){if(auto index=queueIndex())select(*index);return true;}
+  if(msg.wParam==VK_DELETE){action(REMOVE);return true;}
+  return false; // List-box arrows/type-ahead must not seek or start another source.
+ }
+ wchar_t cls[64]{};GetClassNameW(msg.hwnd,cls,64);
+ if(std::wstring(cls)==L"Edit"||std::wstring(cls)==L"ComboBox"||std::wstring(cls)==TRACKBAR_CLASSW)return false;
+ if(std::wstring(cls)==L"Button"&&msg.wParam==VK_SPACE)return false;
+ int id=0;if(ctrl)return false;
+ switch(msg.wParam){case VK_SPACE:id=PLAY;break;case 'S':id=STOP;break;case 'E':id=FRAME;break;case 'C':id=CINEMA;break;case 'B':id=BOOKMARK;break;case 'J':id=JUMP;break;case 'F':id=FULLSCREEN;break;case 'M':id=MUTE;break;case 'N':id=NEXT;break;case 'P':id=PREV;break;case VK_OEM_4:id=LOOPA;break;case VK_OEM_6:id=LOOPB;break;case VK_LEFT:case VK_RIGHT:if(engine)seek(engine->time()+(msg.wParam==VK_LEFT?-1:1)*((GetKeyState(VK_SHIFT)&0x8000)?30000:5000));return true;}
  if(id){action(id);return true;}return false;
 }
-Window::~Window(){managed.reset();neural.reset();treatment.reset();engine.reset();api.reset();if(font)DeleteObject(font);if(titleFont)DeleteObject(titleFont);}
+Window::~Window(){managed.reset();neural.reset();treatment.reset();engine.reset();api.reset();}
 }
