@@ -1,3 +1,9 @@
+# Shiny enhancement library tools
+
+The original read-only `ShinyLibraryAudit.exe` is preserved. The new `ShinyLibraryManager.exe`, `ShinyLibraryManagerCli.exe` and isolated `ShinyEnhancementWorker.exe` implement the local reference-package path. Read [the manager guide](../../docs/library-manager-guide.md) and [implementation status](../../docs/library-manager-status.md). This is not a generic NVIDIA DLL loader.
+
+---
+
 # Shiny Library Audit — first library-management milestone
 
 This native Windows x64 **read-only** utility inventories VLC and recognized DLSS/Streamline filenames without executing them. It is the foundation for the [VLC library-management plan](../../docs/VLC_LIBRARY_MANAGEMENT_PLAN.md), **not an implemented DLL swapper or a new DLSS playback backend**. The packaged artifact also contains `VLC_LIBRARY_MANAGEMENT_PLAN.md` beside this guide. It is separate from the existing 0.7.0 player; that release and its installers are not replaced by this source update.
@@ -7,7 +13,8 @@ This native Windows x64 **read-only** utility inventories VLC and recognized DLS
 Use Visual Studio's C++ tools, CMake 3.24+, and Python 3 for tests. The application itself has no Python, Node, .NET, or downloaded SDK runtime dependency. It uses Windows BCrypt, file-version metadata, and WinVerifyTrust APIs.
 
 ```powershell
-cmake -S native/library-manager -B build/library-audit -A x64
+python scripts/fetch-library-deps.py
+cmake -S native/library-manager -B build/library-audit -A x64 "-DSHINY_SQLITE_SOURCE=$PWD/.deps/sqlite"
 cmake --build build/library-audit --config Release --parallel
 ctest --test-dir build/library-audit -C Release --output-on-failure
 

@@ -31,3 +31,7 @@ No automatic uploads, media history, telemetry or model download. Explicit strea
 ## Build
 
 From the repository root, `powershell -File scripts/Build-Windows.ps1`. Requires Windows x64, Visual Studio C++/SDK, CMake, Python3, Git and Inno Setup6. The player-only CMake build does not build its separate worker; the script/CI builds all components. See THIRD_PARTY_NOTICES.md for immutable source pins and rights.
+
+## Enhancement Libraries (0.8)
+
+Tools > Enhancement libraries opens the native local package manager. Import bundled, verify, stage and select a reference version; then use Tools > Managed spatial preview. These first-party DLLs are conventional filters, not DLSS. See `library-manager-guide.md` in the installed package for independent-preview behavior, store recovery, cancellation and preserved original playback.

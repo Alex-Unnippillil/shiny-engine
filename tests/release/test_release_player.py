@@ -18,12 +18,15 @@ REPO = "owner/player"
 
 
 def sample():
-    runs, checks = [], []
+    runs, checks, paths = [], [], {}
     for index, (name, path) in enumerate(r.REQUIRED.items(), start=1):
-        runs.append(dict(id=index, path=path, head_sha=SHA, head_branch="main", event="push",
-                         head_repository={"id": 42}, status="completed", conclusion="success", run_attempt=1))
+        if path not in paths:
+            paths[path] = index
+            runs.append(dict(id=index, path=path, head_sha=SHA, head_branch="main", event="push",
+                             head_repository={"id": 42}, status="completed", conclusion="success", run_attempt=1))
+        run_id = paths[path]
         checks.append(dict(id=100+index, name=name, head_sha=SHA, app={"slug": "github-actions"},
-                           html_url=f"https://github.com/{REPO}/actions/runs/{index}/job/{100+index}",
+                           html_url=f"https://github.com/{REPO}/actions/runs/{run_id}/job/{100+index}",
                            status="completed", conclusion="success"))
     return runs, checks
 
@@ -32,6 +35,13 @@ class ReleasePolicyTests(unittest.TestCase):
     def test_exact_main_success(self):
         runs, checks = sample()
         self.assertEqual(set(r.select_runs(runs, checks, SHA, 42)), set(r.REQUIRED))
+
+    def test_each_manager_matrix_job_is_required(self):
+        for name in ("library-audit (ubuntu-latest)", "library-audit (windows-latest)"):
+            runs, checks = sample()
+            selected = next(c for c in checks if c["name"] == name)
+            selected["conclusion"] = "failure"
+            with self.assertRaises(r.ReleaseError): r.select_runs(runs, checks, SHA, 42)
 
     def test_required_run_scopes(self):
         for field, value in [("head_sha", "b"*40), ("head_branch", "feature"), ("event", "pull_request"),
@@ -100,7 +110,7 @@ class ReleasePolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)
             run = sample()[0][-1]
-            version = "0.7.0"
+            version = "0.8.0"
             names = [f"ShinyPlayer-{version}-Windows-x64-Setup.exe", f"ShinyPlayer-{version}-Source.zip",
                      "OpenDLSS-NR-Pinned-Source.zip", "playback-report.json", "model-guard-report.json",
                      "ui-workbench-report.json", "installer-report.json", "player-desktop.png",
@@ -111,8 +121,12 @@ class ReleasePolicyTests(unittest.TestCase):
             info = dict(schema=1, version=version, source_sha=SHA, repository=REPO,
                         workflow_run_id=run["id"], workflow_run_attempt=run["run_attempt"])
             (folder / "build-info.json").write_text(json.dumps(info))
+            (folder / "managed-playback-report.json").write_text(json.dumps(dict(versionsProcessed=2, originalPlaybackPreserved=True, rollback=True, dlss=False)))
             portable = folder / f"ShinyPlayer-{version}-Windows-x64-Portable.zip"
             content = {"ShinyVlcPlayer.exe": b"MZplayer", "nr/ShinyNrWorker.exe": b"MZworker"}
+            content.update({"ShinyLibraryManager.exe": b"MZmanager", "ShinyLibraryManagerCli.exe": b"MZcli",
+                            "ShinyEnhancementWorker.exe": b"MZworker", "library-bundles/1.0.0/shiny_spatial.dll": b"MZreference1",
+                            "library-bundles/1.1.0/shiny_spatial.dll": b"MZreference2"})
             inner = "".join(hashlib.sha256(data).hexdigest()+"  "+name+"\n" for name, data in content.items())
             with ZipFile(portable, "w") as z:
                 for name, data in content.items(): z.writestr(name, data)

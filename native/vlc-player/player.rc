@@ -1,8 +1,8 @@
 #include <windows.h>
 1 RT_MANIFEST "player.manifest"
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,7,0,0
- PRODUCTVERSION 0,7,0,0
+ FILEVERSION 0,8,0,0
+ PRODUCTVERSION 0,8,0,0
  FILETYPE VFT_APP
 BEGIN
  BLOCK "StringFileInfo"
@@ -11,7 +11,7 @@ BEGIN
   BEGIN
    VALUE "FileDescription", "Shiny Player - native libVLC media workbench\0"
    VALUE "ProductName", "Shiny Engine\0"
-   VALUE "FileVersion", "0.7.0\0"
+   VALUE "FileVersion", "0.8.0\0"
    VALUE "LegalCopyright", "Shiny Engine contributors. Independent of VideoLAN and NVIDIA.\0"
   END
  END

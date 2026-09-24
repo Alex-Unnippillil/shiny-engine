@@ -10,7 +10,7 @@ void Window::addFiles(const std::vector<std::filesystem::path>& files){
 void Window::closeComparison(){if(treatment){treatment.reset();syncPending=false;layout();if(engine){engine->effects=adjustments;engine->applyEffects();}}}
 void Window::select(size_t index){
  if(!engine)throw std::runtime_error("Install or locate VLC first.");if(index>=queue.items.size())return;
- neural.reset();bookmarks.clear();closeComparison();if(engine->driverSuperResolutionRequested!=driverSuper){auto replacement=std::make_unique<Engine>(api,video,false,false,driverSuper);engine=std::move(replacement);}engine->open(queue.items[index]);queue.choose(index);loop.clear();endHandled=false;fxApplied=false;
+ managed.reset();neural.reset();bookmarks.clear();closeComparison();if(engine->driverSuperResolutionRequested!=driverSuper){auto replacement=std::make_unique<Engine>(api,video,false,false,driverSuper);engine=std::move(replacement);}engine->open(queue.items[index]);queue.choose(index);loop.clear();endHandled=false;fxApplied=false;
  engine->api->SetRate(engine->player,playbackRate);engine->api->SetVolume(engine->player,volume);engine->api->SetMute(engine->player,mutedAudio?1:0);engine->equalizer(eqIndex);SendMessageW(queueBox,LB_SETCURSEL,index,0);SetWindowTextW(hwnd,(L"Shiny Player — "+queue.items[index].title).c_str());message(L"Opening media with VLC...");
 }
 void Window::playPause(){if(!engine)return;bool pause=engine->playing();auto st=api->State(engine->player);if(st==libvlc_Stopped||st==libvlc_Ended||st==libvlc_NothingSpecial){if(queue.selected)select(*queue.selected);else if(!queue.items.empty())select(0);return;}engine->pause(pause);if(treatment)treatment->pause(pause);}
@@ -66,5 +66,5 @@ bool Window::key(MSG& msg){
  else switch(msg.wParam){case VK_SPACE:id=PLAY;break;case 'S':id=STOP;break;case 'E':id=FRAME;break;case 'C':id=CINEMA;break;case 'B':id=BOOKMARK;break;case 'J':id=JUMP;break;case 'F':id=FULLSCREEN;break;case 'M':id=MUTE;break;case 'N':id=NEXT;break;case 'P':id=PREV;break;case VK_OEM_4:id=LOOPA;break;case VK_OEM_6:id=LOOPB;break;case VK_LEFT:case VK_RIGHT:if(engine)seek(engine->time()+(msg.wParam==VK_LEFT?-1:1)*((GetKeyState(VK_SHIFT)&0x8000)?30000:5000));return true;}
  if(id){action(id);return true;}return false;
 }
-Window::~Window(){neural.reset();treatment.reset();engine.reset();api.reset();if(font)DeleteObject(font);if(titleFont)DeleteObject(titleFont);}
+Window::~Window(){managed.reset();neural.reset();treatment.reset();engine.reset();api.reset();if(font)DeleteObject(font);if(titleFont)DeleteObject(titleFont);}
 }

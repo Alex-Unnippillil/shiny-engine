@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0 — local enhancement package management
+
+- Added persistent bounded package quarantine/catalog/history, exact-build first-party approvals, staging, cold worker selection, leases, transaction recovery and idempotent rollback.
+- Added an asynchronous native Libraries window, a typed CLI and integrated player menu controls.
+- Added two original conventional spatial reference DLL versions and an independent muted libVLC frame preview; original playback and research-model consent remain unchanged.
+- Added real-process/DLL, crash-recovery, protocol, native UI, decoded-video and installed-package tests. Release checks include both manager matrix jobs and managed-video evidence.
+- Packaged the manager/worker/reference bundles in the unsigned Windows installer and portable build. No NVIDIA DLSS adapter, proprietary runtime, trained model, online update catalog, code signing or hardware certification is claimed.
+
+See [the manager guide](docs/library-manager-guide.md) and [implementation boundaries](docs/library-manager-status.md).
+
 ## Unreleased — VLC library-management foundation
 
 - Added an independent, read-only Windows x64 library auditor: fixed VLC/DLSS/Streamline slots, bounded PE metadata, SHA-256, offline Authenticode status and path-redacted JSON. Inspection never loads a candidate or modifies installed VLC.

@@ -51,7 +51,8 @@ try {
   Run python @('tests/vlc-player/make_fixture.py','.deps/fixtures')
   $fixture = Join-Path $root '.deps/fixtures/moving-original.avi'
   $runtime = Join-Path $root '.deps/runtime/vlc-3.0.24'
-  Run cmake @('-S','native/vlc-player','-B','build/vlc','-A','x64',"-DVLC_INCLUDE_DIR=$root/.deps/vlc-source/include","-DVLC_TEST_RUNTIME=$runtime","-DVLC_TEST_FIXTURE=$fixture")
+  Run python @('scripts/fetch-library-deps.py')
+  Run cmake @('-S','native/vlc-player','-B','build/vlc','-A','x64',"-DSHINY_SQLITE_SOURCE=$root/.deps/sqlite","-DVLC_INCLUDE_DIR=$root/.deps/vlc-source/include","-DVLC_TEST_RUNTIME=$runtime","-DVLC_TEST_FIXTURE=$fixture")
   Run cmake @('--build','build/vlc','--config','Release','--parallel')
   Run ctest @('--test-dir','build/vlc','-C','Release','--output-on-failure')
   & tests/vlc-player/ui.ps1 -Executable "$root/build/vlc/Release/ShinyVlcPlayer.exe" -Runtime $runtime -Fixture $fixture -Output "$root/artifacts/vlc"
@@ -59,6 +60,7 @@ try {
   if (Test-Path $package) { Remove-Item $package -Recurse -Force }
   New-Item -ItemType Directory -Force "$package/nr" | Out-Null
   Copy-Item build/vlc/Release/ShinyVlcPlayer.exe $package/
+  Run python @('scripts/package-library-manager.py','build/vlc/Release',$package)
   Copy-Item build/vlc/Release/nr/* $package/nr/ -Recurse
   Copy-Item native/vlc-player/README.md,native/vlc-player/THIRD_PARTY_NOTICES.md,docs/native-neural.md,docs/research-mode.md,LICENSE $package/
   Copy-Item .deps/vlc-source/COPYING.LIB $package/LGPL-2.1.txt
@@ -67,14 +69,14 @@ try {
   Copy-Item .deps/volk/LICENSE.md $package/nr/volk-LICENSE.txt
   Copy-Item .deps/vulkan/LICENSE.md $package/nr/Vulkan-Headers-LICENSE.txt
   Get-ChildItem $package -File -Recurse | Sort-Object FullName | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.FullName.Substring($package.Length + 1).Replace('\','/') } | Set-Content "$package/SHA256SUMS.txt"
-  Compress-Archive $package/* artifacts/vlc/ShinyPlayer-0.7.0-Windows-x64-Portable.zip -Force
+  Compress-Archive $package/* artifacts/vlc/ShinyPlayer-0.8.0-Windows-x64-Portable.zip -Force
   if (-not $SkipInstaller) {
     $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
     if (-not (Test-Path $iscc)) { throw 'Install Inno Setup 6, or pass -SkipInstaller to produce only the portable package.' }
     Run $iscc @('/Qp',"/DPackageDir=$package",'installers/windows/player.iss')
     & installers/windows/smoke.ps1
   }
-  Copy-Item build/vlc/playback-report.json artifacts/vlc/ -Force
+  Copy-Item build/vlc/playback-report.json,build/vlc/managed-playback-report.json artifacts/vlc/ -Force
   Get-ChildItem artifacts/vlc -File | Where-Object { $_.Extension -in '.zip','.exe','.png','.json' } | Sort-Object Name | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name } | Set-Content artifacts/vlc/SHA256SUMS.txt
   Write-Host 'Native builds and test artifacts are in artifacts/vlc. This does not establish trained-model quality or GPU performance.'
 } finally { Pop-Location }

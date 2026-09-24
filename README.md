@@ -1,5 +1,10 @@
 # Shiny Player
 
+## 0.8 development: local enhancement library management
+
+Windows source builds now include **Tools > Enhancement libraries** and an independent managed spatial preview. Two first-party reference DLL versions can be imported, staged, selected and rolled back through a verified worker. These are conventional filters, **not DLSS**; NVIDIA candidates remain quarantined. See [the guide](docs/library-manager-guide.md) and [the implementation/remaining gates](docs/library-manager-status.md). Existing 0.7 download links below identify that historical release; 0.8 artifacts are published only after exact-main gates pass.
+
+
 ### Local video playback. Explicit neural experiments. Your original stays available.
 
 [![Windows player](https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/vlc-player.yml/badge.svg?branch=main)](https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/vlc-player.yml)

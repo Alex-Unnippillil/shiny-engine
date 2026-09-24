@@ -175,7 +175,7 @@ struct NeuralPanel::Impl {
  void exportReport(){
   auto files=choose(false,true,L"json");if(files.empty())return;
   std::ofstream out(files[0]);std::string digest;{std::lock_guard lock(mutex);digest=modelDigest;}
-  out<<"{\n  \"schema\": 1,\n  \"application\": \"0.7.0\",\n  \"mode\": \""<<(research?"local-research":"reviewed")<<"\",\n  \"modelManifestSha256\": \""<<digest<<"\",\n  \"vendorParityVerified\": false,\n  \"returnedFrames\": "<<completed<<",\n  \"hasCurrentNeuralOutput\": "<<(latest&&!latest->enhanced.empty()?"true":"false");
+  out<<"{\n  \"schema\": 1,\n  \"application\": \"0.8.0\",\n  \"mode\": \""<<(research?"local-research":"reviewed")<<"\",\n  \"modelManifestSha256\": \""<<digest<<"\",\n  \"vendorParityVerified\": false,\n  \"returnedFrames\": "<<completed<<",\n  \"hasCurrentNeuralOutput\": "<<(latest&&!latest->enhanced.empty()?"true":"false");
   if(latest){out<<",\n  \"width\": "<<latest->header.width<<",\n  \"height\": "<<latest->header.height<<",\n  \"sourcePositionMsApproximate\": "<<latest->sourceTimeMs<<",\n  \"tone\": "<<latest->header.tone<<",\n  \"structure\": "<<latest->header.structure<<",\n  \"mix\": "<<latest->header.blend<<",\n  \"workerRoundTripMs\": "<<latest->milliseconds;}
   out<<",\n  \"scope\": \"Independent SDR frames; explicit CPU transfers; no temporal state or main-audio synchronization. User consent does not verify model licensing or output correctness.\"\n}\n";
   if(!out)throw std::runtime_error("Could not save the experiment report.");SetWindowTextW(info,L"Experiment report saved without media filenames, paths, or image payloads.");

@@ -21,6 +21,8 @@ REQUIRED = {
     "browser-build": ".github/workflows/web.yml",
     "windows-build": ".github/workflows/native.yml",
     "vlc-player": ".github/workflows/vlc-player.yml",
+    "library-audit (ubuntu-latest)": ".github/workflows/library-audit.yml",
+    "library-audit (windows-latest)": ".github/workflows/library-audit.yml",
 }
 MAX_ARCHIVE_BYTES = 128 * 1024 * 1024
 MAX_ARCHIVE_FILES = 512
@@ -128,6 +130,8 @@ def verify_bundle(folder: Path, version: str, sha: str, run: dict, repository: s
         "ui-workbench-report.json", "installer-report.json", "player-desktop.png",
         "player-research-mode.png", "player-neural-workbench.png", "player-cinema.png",
     }
+    if tuple(map(int, version.split('.'))) >= (0, 8, 0):
+        mandatory.add("managed-playback-report.json")
     require(mandatory <= sums.keys(), "Release bundle lacks required binaries or evidence")
     payloads = {p.name for p in folder.iterdir() if p.is_file() and p.suffix in {".exe", ".zip", ".png", ".json"}}
     require(payloads == sums.keys(), "All release payloads must be checksummed; no unexpected paths")
@@ -149,6 +153,14 @@ def verify_bundle(folder: Path, version: str, sha: str, run: dict, repository: s
         actual = {p.relative_to(portable).as_posix() for p in portable.rglob("*") if p.is_file()}
         require(actual == internal.keys() | {"SHA256SUMS.txt"}, "Portable package checksum coverage is incomplete")
         require({"ShinyVlcPlayer.exe", "nr/ShinyNrWorker.exe"} <= internal.keys(), "Player or native worker missing")
+        if tuple(map(int, version.split('.'))) >= (0, 8, 0):
+            require({"ShinyLibraryManager.exe", "ShinyLibraryManagerCli.exe", "ShinyEnhancementWorker.exe",
+                     "library-bundles/1.0.0/shiny_spatial.dll", "library-bundles/1.1.0/shiny_spatial.dll"} <= internal.keys(),
+                    "Managed enhancement package incomplete")
+            managed = json.loads((folder / "managed-playback-report.json").read_text())
+            require(managed.get("versionsProcessed") == 2 and managed.get("originalPlaybackPreserved") is True
+                    and managed.get("rollback") is True and managed.get("dlss") is False,
+                    "Managed reference playback evidence missing or misleading")
     return {**sums, "SHA256SUMS.txt": digest(folder / "SHA256SUMS.txt")}
 
 

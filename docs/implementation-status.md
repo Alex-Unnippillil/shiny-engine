@@ -1,4 +1,8 @@
-# Implementation status — 0.7.0
+# Implementation status — 0.8.0
+
+The library-management update is described in [library-manager-status.md](library-manager-status.md): persistent local catalog/quarantine, cold selection and rollback of exact-build spatial reference DLLs, and an independent VLC-decoded comparison preview. This is not a new NVIDIA DLSS backend or completion of hardware/signing gates.
+
+# Prior 0.7.0 component baseline
 
 The original research plan remains unchanged. Its proposed goals are not retroactively reported as completed.
 

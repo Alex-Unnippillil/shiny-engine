@@ -2,7 +2,7 @@ name: VLC library audit
 on:
   pull_request:
   push:
-    branches: [main, 'feat/vlc-library-audit']
+    branches: [main, 'feat/vlc-library-audit', 'feat/enhancement-library-manager']
 permissions:
   contents: read
 jobs:
@@ -20,13 +20,32 @@ jobs:
       - name: Configure portable policy tests
         if: runner.os != 'Windows'
         run: cmake -S native/library-manager -B build/library-audit -DCMAKE_BUILD_TYPE=Release
+      - name: Fetch authenticated SQLite source
+        if: runner.os == 'Windows'
+        run: python scripts/fetch-library-deps.py
       - name: Configure Windows x64 utility
         if: runner.os == 'Windows'
-        run: cmake -S native/library-manager -B build/library-audit -A x64
+        run: cmake -S native/library-manager -B build/library-audit -A x64 "-DSHINY_SQLITE_SOURCE=${{ github.workspace }}/.deps/sqlite"
       - name: Compile with warnings as errors
         run: cmake --build build/library-audit --config Release --parallel
       - name: Policy and Windows audit integration tests
         run: ctest --test-dir build/library-audit -C Release --output-on-failure
+      - name: Package production manager and evidence
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python scripts/package-library-manager.py build/library-audit/Release artifacts/library-manager
+          if ($LASTEXITCODE) { throw 'Manager packaging failed' }
+          @{ schemaVersion = 1; sourceSha = (git rev-parse HEAD).Trim(); signed = $false; backend = 'first-party-spatial-reference'; dlss = $false } | ConvertTo-Json | Set-Content artifacts/library-manager/build-info.json
+          Copy-Item build/library-audit/Testing/Temporary/LastTest.log artifacts/library-manager/tests.log
+          Get-ChildItem artifacts/library-manager -File -Recurse | Sort-Object FullName | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() + '  ' + [IO.Path]::GetRelativePath((Join-Path $PWD 'artifacts/library-manager'), $_.FullName).Replace('\','/') } | Set-Content artifacts/library-manager/SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: runner.os == 'Windows'
+        with:
+          name: ShinyLibraryManager-Windows-x64
+          path: artifacts/library-manager/
+          if-no-files-found: error
       - name: Package read-only Windows utility
         if: runner.os == 'Windows'
         shell: pwsh

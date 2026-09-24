@@ -5,7 +5,7 @@
 [Setup]
 AppId={{EF321531-DF40-48C4-B448-FA047E46B2E1}
 AppName=Shiny Player
-AppVersion=0.7.0
+AppVersion=0.8.0
 AppPublisher=Shiny Engine contributors
 AppPublisherURL=https://github.com/Alex-Unnippillil/shiny-engine
 DefaultDirName={localappdata}\Programs\ShinyPlayer
@@ -16,7 +16,7 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 WizardStyle=modern
 DisableProgramGroupPage=yes
-OutputBaseFilename=ShinyPlayer-0.7.0-Windows-x64-Setup
+OutputBaseFilename=ShinyPlayer-0.8.0-Windows-x64-Setup
 OutputDir=..\..\artifacts\vlc
 Compression=lzma2
 SolidCompression=yes
