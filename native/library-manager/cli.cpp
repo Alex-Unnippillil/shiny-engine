@@ -40,7 +40,7 @@ auto arg=one?args[at]:std::string{};
   auto id=command=="--import-folder"?store.importFolder(textPath(arg)):store.quarantineFile(textPath(arg));
 std::cout<<"{\"digest\":"<<shiny::libraries::jsonString(id)<<",\"state\":\"quarantined-or-already-present\",\"active\":false}";
  }else if(command=="--import-bundled"){
-  for(auto version:{"1.0.0","1.1.0"})store.importFolder(executableDirectory()/"library-bundles"/version);
+  for(auto version:{"1.0.0","1.1.0","1.2.0"})store.importFolder(executableDirectory()/"library-bundles"/version);
 std::cout<<store.list();
  }else if(command=="--verify"){
   auto reason=store.verify(arg);

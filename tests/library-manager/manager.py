@@ -64,6 +64,14 @@ class Manager(unittest.TestCase):
         self.assertFalse(r['active'])
         self.assertFalse(r['dlssActivationSupported'])
 
+    def test_adaptive_real_dll_probe_and_rollback(self):
+        ids = self.bundled()
+        self.select(ids['1.1.0'])
+        self.assertTrue(self.cli('--probe', ids['1.2.0'])['syntheticFrameProbePassed'])
+        self.select(ids['1.2.0'])
+        self.assertEqual(self.cli('--list')['selected'], ids['1.2.0'])
+        self.assertEqual(self.cli('--rollback')['selected'], ids['1.1.0'])
+
     def test_stage_is_required(self):
         ids = self.bundled()
         self.assertEqual(self.cli('--activate', ids['1.0.0'], code=2)['error'], 'stage-package-first')
@@ -97,15 +105,16 @@ class Manager(unittest.TestCase):
 
     def test_selected_and_previous_protected(self):
         ids = self.bundled()
-        for identity in ids.values():
-            self.select(identity)
-        for identity in ids.values():
-            self.cli('--remove', identity, code=2)
+        for version in ('1.0.0', '1.1.0', '1.2.0'):
+            self.select(ids[version])
+        for version in ('1.1.0', '1.2.0'):
+            self.cli('--remove', ids[version], code=2)
+        self.cli('--remove', ids['1.0.0'])
 
     def test_completed_import_idempotent_and_report_redacted(self):
         a = self.bundled()
         self.assertEqual(a, self.bundled())
-        self.assertEqual(len(self.cli('--list')['packages']), 2)
+        self.assertEqual(len(self.cli('--list')['packages']), 3)
         self.assertTrue(self.cli('--history')['history'])
 
     def test_interrupted_imports_recover_after_process_death(self):
@@ -138,7 +147,7 @@ class Manager(unittest.TestCase):
                 self.root = self.base / point
                 ids = self.bundled()
                 self.fault('remove', ids['1.0.0'], point)
-                self.assertEqual(len(self.cli('--recover')['packages']), 1)
+                self.assertEqual(len(self.cli('--recover')['packages']), 2)
 
     def test_active_lease_blocks_removal(self):
         identity = self.bundled()['1.0.0']
@@ -247,7 +256,7 @@ class Manager(unittest.TestCase):
                 user.SendMessageW(hwnd,0x111,identifier,0)
                 wait(lambda:user.IsWindowEnabled(user.GetDlgItem(hwnd,211)))
             action(201)
-            self.assertEqual(user.SendMessageW(user.GetDlgItem(hwnd,100),0x18B,0,0),2)
+            self.assertEqual(user.SendMessageW(user.GetDlgItem(hwnd,100),0x18B,0,0),3)
             action(204);action(205);action(206)
             self.assertNotEqual(self.cli('--list')['selected'],'')
             action(208)

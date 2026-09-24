@@ -108,7 +108,7 @@ closeHandle(error);
 wire::Greeting greeting;
 transfer(&greeting,sizeof greeting,false);
 cancelled(stop);
-   if(greeting.magicValue!=wire::magic||greeting.abiValue!=wire::abi||greeting.format!=1||std::string(greeting.package.begin(),greeting.package.end())!=id||(greeting.revision!=1&&greeting.revision!=2))throw std::runtime_error("worker-handshake-mismatch");
+   if(greeting.magicValue!=wire::magic||greeting.abiValue!=wire::abi||greeting.format!=1||std::string(greeting.package.begin(),greeting.package.end())!=id||(greeting.revision!=1&&greeting.revision!=2&&greeting.revision!=3))throw std::runtime_error("worker-handshake-mismatch");
    backendRevision=greeting.revision;
   }catch(...){if(initialized)DeleteProcThreadAttributeList(attrs);
 if(process)TerminateProcess(process,1);
@@ -167,6 +167,7 @@ return bytes;
 }
 std::string probeDigest(std::uint32_t revision){if(revision==1)return "b086a1d7394bb19d3470c7ff4a8e479019e9a97e3ae1302a7b805e71fc7ec8d8";
 if(revision==2)return "64a9704eb22c94be4a41dc56ea42bcc85220086086d3780baca23b2d2e64a2a7";
+if(revision==3)return "f763d7502dac1a6f98761cf75b229788c494e9358682c9d46cf0fe5a0ac61ba8";
 throw std::runtime_error("unknown-backend-revision");
 }
 void probePackage(const fs::path& root,const std::string& id,std::stop_token stop){
@@ -178,6 +179,15 @@ frame.bytes=140;
 auto pixels=probeInput();
  auto result=worker.process(frame,pixels,stop);
 if(digest(result)!=probeDigest(worker.revision()))throw std::runtime_error("backend-known-frame-check-failed");
+if(worker.revision()==3){
+ // The legacy probe is translucent and the adaptive mode must preserve it.
+ // Also prove actual opaque detail processing, rather than accepting a passthrough.
+ Bytes opaque;
+ for(unsigned y=0;y<9;++y)for(unsigned x=0;x<11;++x)for(unsigned c=0;c<4;++c)opaque.push_back(static_cast<std::uint8_t>(c<3?(x*x*13+y*17+c*23)%256:255));
+ frame.width=11;frame.height=9;frame.bytes=396;
+ auto detail=worker.process(frame,opaque,stop);
+ if(detail==opaque||digest(detail)!="7f461021144af40c80f9dbefb1c058ee693bcaeaff9fa8146e3eae6072f84916")throw std::runtime_error("adaptive-known-frame-check-failed");
+}
 worker.reset(1,stop);
 }
 }

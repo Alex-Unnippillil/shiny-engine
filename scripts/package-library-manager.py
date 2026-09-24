@@ -11,7 +11,7 @@ root = Path(__file__).resolve().parent.parent
 destination.mkdir(parents=True, exist_ok=True)
 for name in ('ShinyLibraryManager.exe', 'ShinyLibraryManagerCli.exe', 'ShinyEnhancementWorker.exe'):
     shutil.copyfile(binaries / name, destination / name)
-for version in ('1.0.0', '1.1.0'):
+for version in ('1.0.0', '1.1.0', '1.2.0'):
     folder = binaries / 'library-bundles' / version
     target = destination / 'library-bundles' / version
     target.mkdir(parents=True, exist_ok=True)

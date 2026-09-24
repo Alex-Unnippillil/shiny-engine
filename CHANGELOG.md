@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0 — Video studio and adaptive detail
+
+- Polished native Libraries UI, readable package cards, focus/hover states and system high-contrast colors.
+- Direct Video studio/Libraries toolbar access, four comparison views, keyboard/draggable wipe and decoded-pixel inspection.
+- Retained Direct2D bitmap presentation with premultiplied alpha, resource recreation and explicit GDI+ fallback.
+- Third exact-build adaptive SDR detail library with noise threshold, bounded luma changes, chroma/alpha protection and independent opaque activation probe.
+- Bounded 960-edge managed decoding, rolling worker p95 and superseded-input diagnostics.
+- Preserves original VLC, cold selection and rollback; not DLSS or synchronized primary GPU output.
+
+
 ## 0.8.0 — local enhancement package management
 
 - Added persistent bounded package quarantine/catalog/history, exact-build first-party approvals, staging, cold worker selection, leases, transaction recovery and idempotent rollback.

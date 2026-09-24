@@ -1,6 +1,6 @@
 {
   "name": "shiny-engine",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "description": "Local media player, source-preserving review and opt-in native OpenDLSS-NR research. No proprietary models.",
