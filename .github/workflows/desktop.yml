@@ -1,0 +1,57 @@
+name: Cross-platform desktop
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  desktop:
+    name: desktop (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            host: windows
+            qtarch: win64_msvc2022_64
+            target: Windows-x64
+          - os: macos-15
+            host: mac
+            qtarch: clang_64
+            target: macOS-arm64
+          - os: macos-15-intel
+            host: mac
+            qtarch: clang_64
+            target: macOS-x64
+          - os: ubuntu-24.04
+            host: linux
+            target: Linux-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Native Linux development and runtime dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev qt6-multimedia-dev qt6-qpa-plugins libgl1-mesa-dri xvfb gstreamer1.0-plugins-good gstreamer1.0-libav dpkg-dev
+      - name: Install pinned Qt development kit
+        if: runner.os != 'Linux'
+        shell: bash
+        run: |
+          python3 -m venv .venv-desktop
+          if [ "$RUNNER_OS" = Windows ]; then PY=.venv-desktop/Scripts/python.exe; else PY=.venv-desktop/bin/python; fi
+          "$PY" -m pip install aqtinstall==3.3.0
+          "$PY" scripts/install_desktop_qt.py install-qt '${{ matrix.host }}' desktop 6.11.2 '${{ matrix.qtarch }}' -O .qt --modules qtmultimedia
+          "$PY" -m aqt install-src '${{ matrix.host }}' 6.11.2 -O .qt-source --archives qtbase qtmultimedia qtsvg
+      - name: Compile, test, package, install, decode and uninstall
+        run: python3 scripts/desktop_build.py --platform ${{ matrix.target }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: desktop-${{ matrix.target }}
+          path: artifacts/desktop/
+          if-no-files-found: warn

@@ -2,7 +2,11 @@
 
 # Shiny Player
 
-### A local-first Windows workspace for watching, reviewing and comparing video.
+### Local-first desktop playback, review and comparison.
+
+**New: [Shiny Desktop for Windows, macOS and Ubuntu](native/desktop/README.md)** · [Cross-platform downloads](https://github.com/Alex-Unnippillil/shiny-engine/releases/tag/desktop-v0.1.0)
+
+The **Qt Desktop edition** adds native installers and a local-media workflow across platforms. The **Windows VLC edition below** retains its advanced review, enhancement-library and research tools. These are separate editions, not feature-parity claims.
 
 [![Windows build](https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/vlc-player.yml/badge.svg?branch=main)](https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/vlc-player.yml)
 [![Library checks](https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/library-audit.yml/badge.svg?branch=main)](https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/library-audit.yml)
@@ -60,7 +64,7 @@ Setup is per-user, with shortcuts and uninstall. It does not modify your system 
 .\ShinyPlayer-0.10.0-Windows-x64-Setup.exe /TASKS=vlcruntime /VLCARCHIVE="C:\Downloads\vlc-3.0.24-win64.zip"
 ```
 
-The executable and setup are **unsigned**. Verify the release checksums and follow your organization's execution policy; no protection bypass is required or recommended. Native macOS/Linux installers are not provided.
+The executable and setup are **unsigned**. Verify the release checksums and follow your organization's execution policy; no protection bypass is required or recommended. This VLC edition remains Windows-only. Use the [separate cross-platform Desktop edition](native/desktop/README.md) for macOS/Linux or a lighter Windows local-media workflow.
 
 ### Compare the bundled spatial filters
 
@@ -116,6 +120,7 @@ These are technologies actually used in the repository—not proposed migrations
 
 | Component | Technology | Responsibility / source |
 |---|---|---|
+| Cross-platform desktop edition | **C++20, Qt Widgets / Qt Multimedia** | Windows x64, macOS arm64/x64 and Ubuntu x64: `native/desktop`; separate player and version |
 | Windows desktop | **C++20, Win32, Common Controls, DWM** | Native windows, controls, keyboard routing, DPI and shared theme: `native/vlc-player`, `native/ui` |
 | Playback | **VideoLAN libVLC 3**, dynamically loaded | Media demux/decode, tracks, clock and primary audio/video: `engine.cpp` |
 | Comparison presentation | **Direct2D, GDI+** | Retained preview bitmaps and compatibility rendering; not a guarantee of GPU filtering |
