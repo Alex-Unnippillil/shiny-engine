@@ -1,4 +1,11 @@
-# Shiny Player 0.10.0 — a clearer playback workspace
+# Shiny Player 0.10.1 — optional external swapper
+
+This patch adds an opt-in **Tools → Optional DLSS 5 Swapper (external)** panel. It supports user-selected installed/portable DLSS 5 Swapper and classic DLSS Swapper executables, background fingerprinting, per-launch consent, cancellation, changed-file rejection and direct argument-free process launch. No vendor binaries are bundled. This is an external-tool handoff, not a DLSS video integration or sandbox. Existing playback, model approval and package rollback remain unchanged. Read `docs/optional-swapper.md` before using third-party tools.
+
+The same feature is available in the Windows build of Shiny Desktop 0.1.1. macOS/Linux remain local-media players with this Windows-only entry disabled. Both release lines retain their independent version numbers and earlier published assets.
+
+## Previous 0.10.0 workspace features (retained)
+
 
 Unsigned Windows x64 prerelease. This update modernizes the main workspace and documentation; processing and model/library trust boundaries remain unchanged.
 

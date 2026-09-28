@@ -15,7 +15,7 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 QT_VERSION = '6.11.2'
 
 from desktop_notices import collect, inventory
@@ -164,7 +164,7 @@ def main() -> None:
               'linuxDependencies': 'OS-managed Qt/FFmpeg/GStreamer (not a universal Linux binary)' if sys.platform.startswith('linux') else None}
     (artifacts / 'build-info.json').write_text(json.dumps(report, indent=2) + '\n')
     (artifacts / 'dependencies.json').write_text(json.dumps(dependency_info, indent=2) + '\n')
-    run('git', 'archive', '--format=zip', '-o', artifacts / (base + '-Source.zip'), 'HEAD', 'native/desktop', 'installers/desktop', 'scripts/desktop_build.py', 'scripts/desktop_notices.py', 'scripts/desktop_packaging.py', 'scripts/install_desktop_qt.py', 'tests/desktop', 'tests/vlc-player/make_fixture.py', 'LICENSE')
+    run('git', 'archive', '--format=zip', '-o', artifacts / (base + '-Source.zip'), 'HEAD', 'native/desktop', 'native/swapper', 'native/ui', 'tests/swapper', 'docs/optional-swapper.md', 'installers/desktop', 'scripts/desktop_build.py', 'scripts/desktop_notices.py', 'scripts/desktop_packaging.py', 'scripts/install_desktop_qt.py', 'tests/desktop', 'tests/vlc-player/make_fixture.py', 'LICENSE')
     shutil.copyfile(ROOT / 'native/desktop/README.md', artifacts / 'README.md')
     shutil.copyfile(ROOT / 'native/desktop/THIRD_PARTY_NOTICES.md', artifacts / 'THIRD_PARTY_NOTICES.md')
     payloads = sorted(p for p in artifacts.rglob('*') if p.is_file() and p.name != 'SHA256SUMS.txt')

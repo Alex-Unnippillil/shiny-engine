@@ -107,7 +107,7 @@ class ReleasePolicyTests(unittest.TestCase):
                 with self.assertRaises(r.ReleaseError):r.checksums(folder)
 
     def test_complete_bundle_provenance_and_portable_contents(self):
-        for version in ("0.8.0", "0.9.0", "0.10.0"):
+        for version in ("0.8.0", "0.9.0", "0.10.1"):
             self.complete_bundle(version)
 
     def complete_bundle(self, version):
@@ -138,7 +138,7 @@ class ReleasePolicyTests(unittest.TestCase):
                 (folder / "ui-managed-report.json").write_text(json.dumps(studio))
                 for name in ("player-video-studio.png", "player-library-manager.png"):
                     (folder / name).write_bytes(b"\x89PNG\r\n\x1a\nfixture")
-            if version == "0.10.0":
+            if version == "0.10.1":
                 workspace = dict(schema=1, passed=[f"actual assertion {i}" for i in range(8)])
                 (folder / "ui-workspace-report.json").write_text(json.dumps(workspace))
                 for name in ("player-welcome.png", "player-workspace.png", "player-adjustments.png", "player-quick-actions.png", "player-workspace-compact.png"):
@@ -166,7 +166,7 @@ class ReleasePolicyTests(unittest.TestCase):
                     (folder / "installer-report.json").write_text(json.dumps({**installed, **mutation})); write_sums()
                     with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)
                 (folder / "installer-report.json").write_text(json.dumps(installed)); write_sums()
-            if version == "0.10.0":
+            if version == "0.10.1":
                 for broken in ([], ["too few"], [0]*8):
                     (folder / "ui-workspace-report.json").write_text(json.dumps(dict(schema=1, passed=broken))); write_sums()
                     with self.assertRaises(r.ReleaseError): r.verify_bundle(folder, version, SHA, run, REPO)

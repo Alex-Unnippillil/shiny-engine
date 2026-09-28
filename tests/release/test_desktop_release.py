@@ -19,14 +19,14 @@ RUN = {'id': 42, 'run_attempt': 3}
 
 class DesktopReleaseTests(unittest.TestCase):
     def fixture(self, folder):
-        base = 'ShinyDesktop-0.1.0-Linux-x64'
+        base = 'ShinyDesktop-0.1.1-Linux-x64'
         (folder / (base + '.deb')).write_bytes(b'!<arch>\nsynthetic')
         (folder / (base + '.tar.gz')).write_bytes(b'synthetic test archive')
         (folder / (base + '-Source.zip')).write_bytes(b'synthetic test source')
         (folder / 'README.md').write_text('Synthetic test fixture')
         (folder / 'THIRD_PARTY_NOTICES.md').write_text('Synthetic test notices')
         (folder / 'ctest.xml').write_text('<testsuite tests="1" failures="0" errors="0"/>')
-        info = {'schema': 1, 'version': '0.1.0', 'platform': 'Linux-x64', 'sourceSha': SHA, 'sourceTree': TREE,
+        info = {'schema': 1, 'version': '0.1.1', 'platform': 'Linux-x64', 'sourceSha': SHA, 'sourceTree': TREE,
                 'runId': 42, 'runAttempt': 3, 'notarized': False, 'signedByPublisher': False,
                 'installedPlaybackVerified': True, 'uninstallVerified': True}
         (folder / 'build-info.json').write_text(json.dumps(info))
@@ -34,7 +34,7 @@ class DesktopReleaseTests(unittest.TestCase):
         (folder / 'installed-payload.json').write_text(json.dumps({'files': [{}, {}, {}, {}]}))
         for mode in ('build-smoke', 'installed-smoke'):
             d = folder / mode; d.mkdir()
-            playback = {'version': '0.1.0', 'passed': True, 'deliveredVideoFrames': 9,
+            playback = {'version': '0.1.1', 'passed': True, 'deliveredVideoFrames': 9,
                         'pauseVerified': True, 'seekVerified': True, 'stopVerified': True, 'dlss': False}
             (d / 'playback.json').write_text(json.dumps(playback))
             for n in ('desktop.png', 'decoded-frame.png'): (d / n).write_bytes(b'\x89PNG\r\n\x1a\nsynthetic')

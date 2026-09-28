@@ -4,7 +4,7 @@
 
 ### Local-first desktop playback, review and comparison.
 
-**New: [Shiny Desktop for Windows, macOS and Ubuntu](native/desktop/README.md)** · [Cross-platform downloads](https://github.com/Alex-Unnippillil/shiny-engine/releases/tag/desktop-v0.1.0)
+**New: [Shiny Desktop for Windows, macOS and Ubuntu](native/desktop/README.md)** · [Cross-platform downloads](https://github.com/Alex-Unnippillil/shiny-engine/releases/tag/desktop-v0.1.1)
 
 The **Qt Desktop edition** adds native installers and a local-media workflow across platforms. The **Windows VLC edition below** retains its advanced review, enhancement-library and research tools. These are separate editions, not feature-parity claims.
 
@@ -12,13 +12,13 @@ The **Qt Desktop edition** adds native installers and a local-media workflow acr
 [![Library checks](https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/library-audit.yml/badge.svg?branch=main)](https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/library-audit.yml)
 [![Browser checks](https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/web.yml/badge.svg?branch=main)](https://github.com/Alex-Unnippillil/shiny-engine/actions/workflows/web.yml)
 
-**[Windows installer](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.0/ShinyPlayer-0.10.0-Windows-x64-Setup.exe)** · **[Portable ZIP](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.0/ShinyPlayer-0.10.0-Windows-x64-Portable.zip)** · [Release & checksums](https://github.com/Alex-Unnippillil/shiny-engine/releases/tag/v0.10.0)
+**[Windows installer](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.1/ShinyPlayer-0.10.1-Windows-x64-Setup.exe)** · **[Portable ZIP](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.1/ShinyPlayer-0.10.1-Windows-x64-Portable.zip)** · [Release & checksums](https://github.com/Alex-Unnippillil/shiny-engine/releases/tag/v0.10.1)
 
 [Quick start](#quick-start) · [Workspace](#the-workspace) · [Architecture](#architecture) · [Tech stack](#tech-stack) · [Build](#build-and-test) · [Limits](#capabilities-and-limits)
 
 </div>
 
-> **0.10.0 · unsigned Windows x64 prerelease.** Real libVLC playback, local package management and conventional spatial comparisons are implemented. NVIDIA DLSS activation, trained-model quality, physical-GPU speed, HDR and neural audio synchronization are **not certified**. No NVIDIA DLLs or model weights are bundled. Shiny is independent of VideoLAN and NVIDIA.
+> **0.10.1 · unsigned Windows x64 prerelease.** Real libVLC playback, local package management and conventional spatial comparisons are implemented. NVIDIA DLSS activation, trained-model quality, physical-GPU speed, HDR and neural audio synchronization are **not certified**. No NVIDIA DLLs or model weights are bundled. Shiny is independent of VideoLAN and NVIDIA.
 
 ![Shiny Player playing a Cosmic Cliffs still-image demo, with the blue starscape and amber nebula in the real Windows interface](docs/media/readme-cosmic-cliffs.png)
 *Actual Shiny Player 0.10.0 capture playing a still-image demo of Webb's Cosmic Cliffs. Image credit: NASA, ESA, CSA, STScI. [Image source and capture details](docs/media/README.md). Sample media only—not a DLSS demonstration or an endorsement.*
@@ -26,7 +26,7 @@ The **Qt Desktop edition** adds native installers and a local-media workflow acr
 <details>
 <summary>Original release-test screenshot</summary>
 
-![Main playback workspace with an in-memory queue](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.0/player-workspace.png)
+![Main playback workspace with an in-memory queue](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.1/player-workspace.png)
 *Actual Windows application capture from the release test run. The moving color pattern is our generated decoding fixture—not photographic enhancement evidence or a mockup.*
 
 </details>
@@ -41,16 +41,22 @@ The **Qt Desktop edition** adds native installers and a local-media workflow acr
 
 <table>
 <tr>
-<td width="50%"><img src="https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.0/player-welcome.png" alt="Welcome screen with local media and runtime guidance"><br><strong>A clear starting point</strong><br>Open local media, choose an explicit stream, or locate VLC.</td>
-<td width="50%"><img src="https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.0/player-quick-actions.png" alt="Quick actions dialog with search, descriptions and keyboard hints"><br><strong>Find the next action</strong><br>Search commands; inspect prerequisites; explicitly run or cancel.</td>
+<td width="50%"><img src="https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.1/player-welcome.png" alt="Welcome screen with local media and runtime guidance"><br><strong>A clear starting point</strong><br>Open local media, choose an explicit stream, or locate VLC.</td>
+<td width="50%"><img src="https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.1/player-quick-actions.png" alt="Quick actions dialog with search, descriptions and keyboard hints"><br><strong>Find the next action</strong><br>Search commands; inspect prerequisites; explicitly run or cancel.</td>
 </tr>
 <tr>
-<td><img src="https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.0/player-video-studio.png" alt="Video studio showing matched source and adaptive detail output"><br><strong>Compare the same frame</strong><br>Side-by-side, wipe, output-only, source-only and 1:1 inspection.</td>
-<td><img src="https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.0/player-library-manager.png" alt="Enhancement Libraries showing first-party packages and trust details"><br><strong>Know what will execute</strong><br>Quarantine, verify, stage, select next preview, and roll back.</td>
+<td><img src="https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.1/player-video-studio.png" alt="Video studio showing matched source and adaptive detail output"><br><strong>Compare the same frame</strong><br>Side-by-side, wipe, output-only, source-only and 1:1 inspection.</td>
+<td><img src="https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.1/player-library-manager.png" alt="Enhancement Libraries showing first-party packages and trust details"><br><strong>Know what will execute</strong><br>Quarantine, verify, stage, select next preview, and roll back.</td>
 </tr>
 </table>
 
 All gallery images come from native Windows tests and are versioned with the release. Dark/high-contrast-aware colors, DPI-aware spacing and native keyboard semantics are shared across the main workspace, quick actions, Libraries and Video studio. This is not a claim of completed assistive-technology certification.
+
+## Optional DLSS 5 Swapper (Windows)
+
+Both Windows editions now offer **Tools → Optional DLSS 5 Swapper (external)**. Select an installed or portable executable, review its path and SHA-256 fingerprint, acknowledge third-party execution, then choose **Launch external tool**. Nothing launches automatically; permission is single-use and selection is not saved.
+
+This opens the separate community `rakanki911/DLSS5-Swapper` application (or classic `beeradmoore/dlss-swapper`). It is **not** a DLSS video backend: Shiny passes no media, game, target-directory or command-line arguments, installs no DLLs, and never marks vendor packages approved. The third-party application runs with your account permissions, not in a sandbox; its own downloads, modifications and restoration remain outside Shiny. macOS/Linux show the feature as Windows-only. [Setup, trust boundaries and tests](docs/optional-swapper.md).
 
 ## Quick start
 
@@ -61,7 +67,7 @@ All gallery images come from native Windows tests and are versioned with the rel
 Setup is per-user, with shortcuts and uninstall. It does not modify your system VLC, install an elevated service or create a startup task. The optional VideoLAN archive is fetched only when selected and checked against a pinned SHA-256. For offline setup, provide the exact supported archive:
 
 ```powershell
-.\ShinyPlayer-0.10.0-Windows-x64-Setup.exe /TASKS=vlcruntime /VLCARCHIVE="C:\Downloads\vlc-3.0.24-win64.zip"
+.\ShinyPlayer-0.10.1-Windows-x64-Setup.exe /TASKS=vlcruntime /VLCARCHIVE="C:\Downloads\vlc-3.0.24-win64.zip"
 ```
 
 The executable and setup are **unsigned**. Verify the release checksums and follow your organization's execution policy; no protection bypass is required or recommended. This VLC edition remains Windows-only. Use the [separate cross-platform Desktop edition](native/desktop/README.md) for macOS/Linux or a lighter Windows local-media workflow.
@@ -168,7 +174,7 @@ Open a local video → **Neural research → Local research → Inspect model fo
 
 Focused edits, sliders, combo boxes and queue controls keep their normal keys; hidden sidebar controls do not retain focus after compact resize or Cinema. Compact windows retain queue selection through **Playback → Choose queued item**; expand the window for filtering/adjustment panels. The menu's advanced playback shortcuts are not injected into a focused text field.
 
-![Compact main workspace](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.0/player-workspace-compact.png)
+![Compact main workspace](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/v0.10.1/player-workspace-compact.png)
 
 ## Build and test
 

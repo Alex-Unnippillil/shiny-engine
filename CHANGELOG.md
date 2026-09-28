@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.1 / Desktop 0.1.1 — optional external swapper
+
+- Add Windows-only, off-by-default DLSS 5 Swapper / classic Swapper launch panels in both desktop editions.
+- Require explicit local EXE selection, background SHA-256 inspection and single-use consent; recheck pinned bytes before an argument-free direct process launch. No automatic downloads, DLL copying, injection, target/media handoff or elevation.
+- Add portable policy and real Windows consent/cancellation/tamper/launcher/UI tests using only a synthetic executable. Existing playback and trust rules remain unchanged.
+- This is external-tool integration, not a working NVIDIA DLSS video backend; third-party code is not sandboxed or publisher-approved by Shiny.
+
+
 ## 0.10.0 — main workspace and documentation
 
 - Unified the main player with the native studio theme, including system high-contrast colors, a welcome screen, status badge, hover/focus controls and themed sliders.

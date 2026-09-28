@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include "window.hpp"
 #include <QApplication>
+#include <QAction>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -75,6 +76,18 @@ private slots:
         for (int i = 0; i < 501; ++i) tooMany.append(localMedia(file));
         QVERIFY_EXCEPTION_THROWN(savePlaylist(d.path() + "/list", tooMany), std::runtime_error);
         Window w(true); QVERIFY(!w.addFiles(QStringList(501, file), false)); QCOMPARE(w.queue().size(), 0);
+    }
+    void externalToolIsOptional() {
+        Window w(true);
+        auto* action = w.findChild<QAction*>("externalSwapper");
+        QVERIFY(action);
+#ifdef Q_OS_WIN
+        QVERIFY(action->isEnabled());
+#else
+        QVERIFY(!action->isEnabled());
+#endif
+        QCOMPARE(w.mediaPlayer()->playbackState(), QMediaPlayer::StoppedState);
+        QVERIFY(w.queue().isEmpty());
     }
     void idleUi() {
         Window w(true); w.show();

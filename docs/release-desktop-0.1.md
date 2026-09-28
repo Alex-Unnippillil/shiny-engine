@@ -1,4 +1,4 @@
-# Shiny Desktop 0.1.0 — Windows, macOS and Linux
+# Shiny Desktop 0.1.1 — Windows, macOS and Linux
 
 An additive C++20 / Qt desktop edition for local video and audio. The existing Shiny Player 0.10.0 Windows libVLC edition and its enhancement/research tools are unchanged.
 
@@ -6,14 +6,18 @@ An additive C++20 / Qt desktop edition for local video and audio. The existing S
 
 | Platform | Package |
 |---|---|
-| Windows x64 | `ShinyDesktop-0.1.0-Windows-x64-Setup.exe` or complete `-Portable.zip` |
-| macOS 13+ Apple Silicon | `ShinyDesktop-0.1.0-macOS-arm64.dmg` |
-| macOS 13+ Intel | `ShinyDesktop-0.1.0-macOS-x64.dmg` |
-| Ubuntu 24.04 x64 | `ShinyDesktop-0.1.0-Linux-x64.deb` (apt resolves dependencies) |
+| Windows x64 | `ShinyDesktop-0.1.1-Windows-x64-Setup.exe` or complete `-Portable.zip` |
+| macOS 13+ Apple Silicon | `ShinyDesktop-0.1.1-macOS-arm64.dmg` |
+| macOS 13+ Intel | `ShinyDesktop-0.1.1-macOS-x64.dmg` |
+| Ubuntu 24.04 x64 | `ShinyDesktop-0.1.1-Linux-x64.deb` (apt resolves dependencies) |
 
 Windows setup is per-user. On macOS, drag the app from the DMG to Applications. The Linux TGZ additionally requires the distribution's Qt/codec packages; it is not a universal AppImage.
 
 These are prerelease packages: **Windows is unsigned; macOS is ad-hoc signed only and is not Developer-ID signed or notarized.** Follow platform/organization execution policies. No system-security bypass is recommended. Uninstall leaves preferences and all user media/playlists intact.
+
+## Optional external tool (Windows only)
+
+Tools → Optional DLSS 5 Swapper (external) provides user-selected executable inspection and one-time consented launching. No third-party files are bundled, no media/targets are handed off and no DLL is loaded into Shiny. The program runs separately, not in a sandbox. The feature does not enable DLSS video output or change model/package approvals. macOS/Linux keep a disabled Windows-only entry. See the included optional-swapper guide.
 
 ## Included
 
