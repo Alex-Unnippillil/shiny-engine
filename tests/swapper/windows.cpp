@@ -38,7 +38,9 @@ int wmain(int argc,wchar_t** argv){try{
     auto exe=dir.path/L"DLSS 5 Swapper.exe";
     fs::copy_file(argv[1],exe);
     const auto snapshot=inspect(exe);
-    check(snapshot.sha256.size()==64&&snapshot.bytes==fs::file_size(exe),"fingerprint");
+    check(snapshot.sha256.size()==64&&snapshot.bytes==fs::file_size(exe)&&snapshot.architecture=="x64","fingerprint");
+    auto wrongArchitecture=snapshot;wrongArchitecture.architecture="x86";
+    rejects([&]{launch(wrongArchitecture,true);},"changed architecture metadata rejected");
     check(!fs::exists(dir.path/L"started.txt"),"inspect must not execute");
     rejects([&]{launch(snapshot,false);},"no consent no execution");
     std::stop_source stop;stop.request_stop();

@@ -45,7 +45,7 @@ inline bool localSyntax(std::wstring_view path) {
     }
     return true;
 }
-inline void executableHeader(std::span<const std::uint8_t> b, std::uint64_t fileBytes) {
+inline std::string_view executableHeader(std::span<const std::uint8_t> b, std::uint64_t fileBytes) {
     auto u16=[&](std::size_t o)->unsigned {
         if(o>b.size() || b.size()-o<2) throw std::runtime_error("truncated-executable-header");
         return unsigned(b[o]) | (unsigned(b[o+1])<<8);
@@ -53,10 +53,17 @@ inline void executableHeader(std::span<const std::uint8_t> b, std::uint64_t file
     auto u32=[&](std::size_t o)->std::uint32_t { return u16(o) | (std::uint32_t(u16(o+2))<<16); };
     if (!fileBytes || fileBytes>MaxBytes || b.size()<64 || u16(0)!=0x5a4d) throw std::runtime_error("not-a-supported-executable");
     const auto pe=std::size_t(u32(60));
-    if(pe<64 || pe>b.size() || b.size()-pe<26 || u32(pe)!=0x4550 || u16(pe+4)!=0x8664 || u16(pe+24)!=0x20b)
-        throw std::runtime_error("windows-x64-executable-required");
+    if(pe<64 || pe>b.size() || b.size()-pe<26 || u32(pe)!=0x4550)
+        throw std::runtime_error("windows-executable-required");
+    // A portable wrapper's architecture can differ from its contained application.
+    // Both ordinary x86 and x64 processes are valid external tools on this x64 host.
+    const auto machine=u16(pe+4), magic=u16(pe+24);
+    const bool x64=machine==0x8664 && magic==0x20b;
+    const bool x86=machine==0x14c && magic==0x10b;
+    if(!x64 && !x86)throw std::runtime_error("windows-x86-or-x64-executable-required");
     const auto flags=u16(pe+22), sections=u16(pe+6), optional=u16(pe+20);
-    if (!(flags&2) || (flags&0x2000) || !sections || sections>96 || optional<112 || pe+24+optional+sections*40>fileBytes)
+    if (!(flags&2) || (flags&0x2000) || !sections || sections>96 || optional<(x64?112u:96u) || pe+24+optional+sections*40>fileBytes)
         throw std::runtime_error("invalid-executable-metadata");
+    return x64?"x64":"x86";
 }
 }

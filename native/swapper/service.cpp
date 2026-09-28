@@ -56,7 +56,7 @@ struct Crypto {
     ~Crypto(){if(hash)BCryptDestroyHash(hash);if(algorithm)BCryptCloseAlgorithmProvider(algorithm,0);}
 };
 Snapshot fingerprint(const std::filesystem::path& path, Locked& locked, std::stop_token stop){
-    Snapshot result{path,{},locked.bytes,recognize(path.filename().wstring())};
+    Snapshot result{path,{},locked.bytes,recognize(path.filename().wstring()),{}};
     Crypto crypto;
     std::vector<std::uint8_t> buffer(1024*1024);
     std::uint64_t total=0;
@@ -64,7 +64,7 @@ Snapshot fingerprint(const std::filesystem::path& path, Locked& locked, std::sto
         if(stop.stop_requested())throw std::runtime_error("cancelled");
         DWORD count=0;
         if(!ReadFile(locked.file(),buffer.data(),static_cast<DWORD>(buffer.size()),&count,nullptr) || !count)throw std::runtime_error("incomplete-read");
-        if(!total)executableHeader(std::span(buffer.data(),count),locked.bytes);
+        if(!total)result.architecture=executableHeader(std::span(buffer.data(),count),locked.bytes);
         total+=count;
         if(total>locked.bytes || BCryptHashData(crypto.hash,buffer.data(),count,0)<0)throw std::runtime_error("fingerprint-failed");
     }
@@ -81,7 +81,7 @@ Snapshot inspect(const std::filesystem::path& path,std::stop_token stop){
 unsigned long launch(const Snapshot& snapshot,bool consent,std::stop_token stop){
     if(!consent)throw std::runtime_error("explicit-launch-consent-required");
     Locked locked(snapshot.path);const auto current=fingerprint(snapshot.path,locked,stop);
-    if(current.sha256!=snapshot.sha256 || current.bytes!=snapshot.bytes || current.tool!=snapshot.tool)throw std::runtime_error("selected-executable-changed-select-again");
+    if(current.sha256!=snapshot.sha256 || current.bytes!=snapshot.bytes || current.tool!=snapshot.tool || current.architecture!=snapshot.architecture)throw std::runtime_error("selected-executable-changed-select-again");
     if(stop.stop_requested())throw std::runtime_error("cancelled");
     // Parents and final executable remain locked against replacement until process creation returns.
     // No shell, arguments, inherited handles, automatic elevation, injection or media handoff.

@@ -19,7 +19,11 @@ int main(){try{
     std::vector<std::uint8_t> b(1024);
     auto put16=[&](std::size_t at,unsigned v){b[at]=static_cast<std::uint8_t>(v);b[at+1]=static_cast<std::uint8_t>(v>>8);};
     put16(0,0x5a4d);put16(60,128);put16(128,0x4550);put16(132,0x8664);put16(134,1);put16(148,240);put16(150,2);put16(152,0x20b);
-    executableHeader(b,b.size());check(true);
+    check(executableHeader(b,b.size())=="x64");
+    put16(132,0x14c);rejects([&]{executableHeader(b,b.size());});
+    put16(152,0x10b);put16(148,224);check(executableHeader(b,b.size())=="x86");
+    put16(148,95);rejects([&]{executableHeader(b,b.size());});
+    put16(132,0x8664);put16(152,0x20b);put16(148,240);
     rejects([&]{executableHeader(b,MaxBytes+1);});
     put16(150,0x2002);rejects([&]{executableHeader(b,b.size());});put16(150,2);
     put16(132,0xaa64);rejects([&]{executableHeader(b,b.size());});put16(132,0x8664);

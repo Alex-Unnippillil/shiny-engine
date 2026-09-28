@@ -7,7 +7,7 @@ Available in Shiny Player **0.10.1** and Shiny Desktop **0.1.1** on Windows. Thi
 Open **Tools → Optional DLSS 5 Swapper (external)**. The modeless window does not pause or disable primary playback. Nothing launches on startup, when opening media, or just by opening this panel.
 
 1. Obtain a tool you are authorized to use from its own project. The **DLSS 5 project** and **Classic project** buttons open only their fixed GitHub project pages in your browser. Shiny does not download, install or redistribute either application.
-2. Use **Choose executable** to select an installed application or portable EXE—not its Setup installer. The file must be a local, regular Windows x64 executable, at most 512 MiB. Select the whole installed/portable tool as supplied by its author; renaming an unrelated executable is not verification.
+2. Use **Choose executable** to select an installed application or portable EXE—not its Setup installer. The file must be a local, regular Windows x86 or x64 executable, at most 512 MiB. The displayed architecture describes the launcher, not a contained payload or GPU compatibility. Select the whole installed/portable tool as supplied by its author; renaming an unrelated executable is not verification.
 3. Review the displayed path, byte count and SHA-256 fingerprint. Inspection does not execute the candidate. The checkbox remains unchecked. A fingerprint identifies bytes; it is **not** malware scanning, a publisher signature check, license verification or backend compatibility approval. Companion files are not verified.
 4. Acknowledge third-party execution and click **Launch external tool**. Shiny reopens the file with its parents pinned, rehashes it and rejects a changed file. Consent applies once and is cleared, whether launch succeeds or fails. A process-start result is not a Ready or DLSS-active result.
 
@@ -22,12 +22,13 @@ Open **Tools → Optional DLSS 5 Swapper (external)**. The modeless window does 
 
 Recognition is case-insensitive and only reduces accidental selection. It never marks a file safe. Setup programs, DLLs, scripts, shortcuts, unknown names, relative paths, UNC/device paths, alternate streams, reparse points, hardlinks and write-locked files are refused. Mapped network drives are refused. This does not constitute a hostile-same-user or hostile-kernel security boundary.
 
-The DLSS 5 project's v2.2.7 package manifest and release list were inspected on **28 September 2026** to confirm its installed/portable naming. These two projects are distinct. Shiny does not pin users to that third-party version or claim that a newer build works correctly.
+The DLSS 5 project's v2.2.7 package manifest and release list were inspected on **28 September 2026** to confirm its installed/portable naming. These two projects are distinct. Electron portable packages use a separate launcher; x86 launchers are accepted on the Windows x64 host without pretending that the payload is a 32-bit video backend. Shiny does not pin users to that third-party version or claim that a newer build works correctly.
 
 - [DLSS 5 Swapper project](https://github.com/rakanki911/DLSS5-Swapper)
 - [Inspected v2.2.7 package manifest](https://github.com/rakanki911/DLSS5-Swapper/blob/v2.2.7/package.json)
 - [v2.2.7 release information](https://github.com/rakanki911/DLSS5-Swapper/releases/tag/v2.2.7)
 - [Classic Swapper project and limitations](https://github.com/beeradmoore/dlss-swapper)
+- [Electron Builder portable wrapper source](https://github.com/electron-userland/electron-builder/blob/master/packages/app-builder-lib/templates/nsis/portable.nsi)
 
 ## Permissions and compatibility
 

@@ -82,12 +82,12 @@ struct State {
         SendMessageW(item(Consent),BM_SETCHECK,BST_UNCHECKED,0);
         busy=true;forgetRequested=false;cancellation=std::stop_source{};const auto token=cancellation.get_token();enable();
         SetWindowTextW(item(Status),execute?L"Rechecking the selected bytes before starting. Cancel stops pending work.":L"Inspecting without execution. Playback stays available; Cancel stops the check.");
-        pending=std::async(std::launch::async,[path,execute,consentSnapshot,token](){
+        try { pending=std::async(std::launch::async,[path,execute,consentSnapshot,token](){
             Result r;
             try{if(execute)r.pid=launch(*consentSnapshot,true,token);else r.snapshot=inspect(path,token);}
             catch(const std::exception& e){r.error=widen(e.what());}catch(...){r.error=L"external-tool-operation-failed";}
             return r;
-        });
+        }); } catch(...) { busy=false;reset();throw; }
     }
     void tick(){
         if(!busy || !pending.valid() || pending.wait_for(std::chrono::milliseconds(0))!=std::future_status::ready)return;
@@ -96,7 +96,7 @@ struct State {
         if(forgetRequested){reset();SetWindowTextW(item(Status),L"Selection and launch consent cleared. Any already-started external process remains independent.");return;}
         if(result.snapshot){
             selected=std::move(result.snapshot);
-            const auto text=std::wstring(title(selected->tool))+L"\r\n"+selected->path.wstring()+L"\r\nSHA-256: "+widen(selected->sha256)+L"\r\n"+std::to_wstring(selected->bytes)+L" bytes · Windows x64 · Publisher/companion files NOT verified";
+            const auto text=std::wstring(title(selected->tool))+L"\r\n"+selected->path.wstring()+L"\r\nSHA-256: "+widen(selected->sha256)+L"\r\n"+std::to_wstring(selected->bytes)+L" bytes · Windows "+widen(selected->architecture)+L" EXE · Publisher/companion files NOT verified";
             SetWindowTextW(item(Details),text.c_str());
             SetWindowTextW(item(Status),L"Inspection complete. Review the exact file and warnings; consent is unchecked. No code has been executed.");
         }else{
