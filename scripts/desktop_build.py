@@ -19,6 +19,7 @@ VERSION = '0.1.0'
 QT_VERSION = '6.11.2'
 
 from desktop_notices import collect, inventory
+from desktop_packaging import create_dmg, ffmpeg_version
 
 
 def run(*args: object, cwd: Path = ROOT, env: dict | None = None, timeout: int = 900) -> None:
@@ -35,7 +36,14 @@ def smoke(executable: Path, fixture: Path, output: Path, env: dict) -> dict:
     command = [executable, '--smoke', fixture, output]
     if sys.platform.startswith('linux'):
         command = ['xvfb-run', '-a', '-s', '-screen 0 1280x900x24', *command]
-    run(*command, env=env, timeout=60)
+    completed = subprocess.run([str(a) for a in command], cwd=ROOT, env=env, capture_output=True,
+                               text=True, encoding='utf-8', errors='replace', timeout=60)
+    if completed.returncode:
+        print(completed.stdout, completed.stderr)
+        completed.check_returncode()
+    backend_version = ffmpeg_version(completed.stderr)
+    if not sys.platform.startswith('linux') and backend_version is None:
+        raise RuntimeError('The packaged FFmpeg runtime version was not reported')
     data = json.loads((output / 'playback.json').read_text())
     if not (data['passed'] is True and data['deliveredVideoFrames'] >= 8 and data['pauseVerified']
             and data['seekVerified'] and data['stopVerified'] and data['dlss'] is False):
@@ -43,6 +51,8 @@ def smoke(executable: Path, fixture: Path, output: Path, env: dict) -> dict:
     for name in ['desktop.png', 'decoded-frame.png']:
         if not (output / name).read_bytes().startswith(b'\x89PNG\r\n\x1a\n'):
             raise RuntimeError('Missing native screenshot/frame evidence')
+    data['ffmpegRuntimeVersion'] = backend_version
+    (output / 'playback.json').write_text(json.dumps(data, indent=2) + '\n')
     return data
 
 
@@ -81,8 +91,8 @@ def main() -> None:
     executable = build / 'ShinyDesktop'
     if sys.platform == 'win32': executable = build / 'Release/ShinyDesktop.exe'
     if sys.platform == 'darwin': executable = build / 'ShinyDesktop.app/Contents/MacOS/ShinyDesktop'
-    smoke(executable, fixture, artifacts / 'build-smoke', env)
-    dependency_info = collect(ROOT, build / 'notices')
+    build_evidence = smoke(executable, fixture, artifacts / 'build-smoke', env)
+    dependency_info = collect(ROOT, build / 'notices', build_evidence['ffmpegRuntimeVersion'])
     run('cmake', '--install', build, '--config', 'Release', '--prefix', stage, env=env)
     base = f'ShinyDesktop-{VERSION}-{target}'
     runtime_env = env.copy()
@@ -114,7 +124,7 @@ def main() -> None:
         inventory(stage, artifacts / 'installed-payload.json')
         os.symlink('/Applications', stage / 'Applications')
         dmg = artifacts / (base + '.dmg')
-        run('hdiutil', 'create', '-volname', 'Shiny Desktop', '-srcfolder', stage, '-ov', '-format', 'UDZO', dmg)
+        create_dmg(stage, dmg)
         with tempfile.TemporaryDirectory(prefix='shiny-volume-') as tmp:
             mount = Path(tmp) / 'mounted'
             run('hdiutil', 'attach', dmg, '-mountpoint', mount, '-nobrowse', '-readonly')
@@ -150,7 +160,7 @@ def main() -> None:
               'linuxDependencies': 'OS-managed Qt/FFmpeg/GStreamer (not a universal Linux binary)' if sys.platform.startswith('linux') else None}
     (artifacts / 'build-info.json').write_text(json.dumps(report, indent=2) + '\n')
     (artifacts / 'dependencies.json').write_text(json.dumps(dependency_info, indent=2) + '\n')
-    run('git', 'archive', '--format=zip', '-o', artifacts / (base + '-Source.zip'), 'HEAD', 'native/desktop', 'installers/desktop', 'scripts/desktop_build.py', 'scripts/desktop_notices.py', 'scripts/install_desktop_qt.py', 'tests/desktop', 'tests/vlc-player/make_fixture.py', 'LICENSE')
+    run('git', 'archive', '--format=zip', '-o', artifacts / (base + '-Source.zip'), 'HEAD', 'native/desktop', 'installers/desktop', 'scripts/desktop_build.py', 'scripts/desktop_notices.py', 'scripts/desktop_packaging.py', 'scripts/install_desktop_qt.py', 'tests/desktop', 'tests/vlc-player/make_fixture.py', 'LICENSE')
     shutil.copyfile(ROOT / 'native/desktop/README.md', artifacts / 'README.md')
     shutil.copyfile(ROOT / 'native/desktop/THIRD_PARTY_NOTICES.md', artifacts / 'THIRD_PARTY_NOTICES.md')
     payloads = sorted(p for p in artifacts.rglob('*') if p.is_file() and p.name != 'SHA256SUMS.txt')

@@ -3,13 +3,14 @@
 from __future__ import annotations
 import hashlib
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 
 
-def collect(root: Path, output: Path) -> dict:
+def collect(root: Path, output: Path, ffmpeg_runtime: str | None = None) -> dict:
     output.mkdir(parents=True, exist_ok=True)
     records = []
     if sys.platform.startswith('linux'):
@@ -28,6 +29,8 @@ def collect(root: Path, output: Path) -> dict:
             shutil.copyfile(Path('/usr/share/common-licenses') / name, output / (name + '.txt'))
         sources = ['https://packages.ubuntu.com/noble/qt6-base-dev', 'https://packages.ubuntu.com/noble/qt6-multimedia-dev']
     else:
+        if not ffmpeg_runtime or not re.fullmatch(r'7\.1\.[0-9]+', ffmpeg_runtime):
+            raise RuntimeError('Review corresponding source for this FFmpeg runtime before packaging')
         source_root = root / '.qt-source'
         for module in ['qtbase', 'qtmultimedia', 'qtsvg']:
             candidates = [p.parent for p in source_root.rglob('CMakeLists.txt') if p.parent.name == module]
@@ -37,6 +40,9 @@ def collect(root: Path, output: Path) -> dict:
             count = 0
             for file in folder.rglob('*'):
                 name = file.name.lower()
+                relative = file.relative_to(folder)
+                if relative.parts[0] in {'tests', 'examples'} or file.suffix.lower() in {'.cpp', '.h', '.in', '.pro', '.qrc', '.qdoc', '.ini'}:
+                    continue
                 if not file.is_file() or file.is_symlink() or file.stat().st_size > 1024 * 1024:
                     continue
                 if not (name.startswith(('license', 'copying', 'copyright')) or
@@ -57,8 +63,8 @@ def collect(root: Path, output: Path) -> dict:
         sources = [f'https://download.qt.io/official_releases/qt/6.11/6.11.2/submodules/{m}-everywhere-src-6.11.2.tar.xz'
                    for m in ['qtbase', 'qtmultimedia', 'qtsvg']]
         sources += ['https://code.qt.io/cgit/qt/qtmultimedia.git/tree/src/3rdparty/ffmpeg?h=v6.11.2',
-                    'https://ffmpeg.org/releases/ffmpeg-7.1.3.tar.xz']
-        records.append({'package': 'FFmpeg', 'version': '7.1.3', 'configuration': 'Qt official shared binaries; see qtmultimedia FFmpeg build scripts and attributions'})
+                    f'https://ffmpeg.org/releases/ffmpeg-{ffmpeg_runtime}.tar.xz']
+        records.append({'package': 'FFmpeg', 'version': ffmpeg_runtime, 'versionEvidence': 'Qt playback backend diagnostic from this actual native run', 'configuration': 'Qt official shared binaries; see qtmultimedia FFmpeg build scripts and attributions'})
     info = {'schema': 1, 'dependencies': records, 'correspondingSourceAccess': sources,
             'relinking': 'Qt is dynamically linked. Application source and build instructions accompany the release; compatible modified libraries are permitted. No library hash lock is imposed by this edition.',
             'scope': 'Build dependency record and source-access guidance, not a complete vulnerability or patent audit.'}
