@@ -17,7 +17,7 @@ import tempfile
 from zipfile import ZipFile, ZIP_DEFLATED
 import release_player as existing
 
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 TARGETS = ('Windows-x64', 'macOS-arm64', 'macOS-x64', 'Linux-x64')
 MAX_BYTES = 2 * 1024 ** 3
 REQUIRED = {**existing.REQUIRED, **{f'desktop ({p})': '.github/workflows/desktop.yml' for p in TARGETS}}

@@ -1,4 +1,8 @@
-# Implementation status — Windows VLC 0.10.0 and Desktop 0.1.0
+# Implementation status — Windows VLC 0.10.1 and Desktop 0.1.1
+
+## Optional external swapper — 0.10.1 / Desktop 0.1.1
+
+Both Windows UIs can explicitly launch a user-selected DLSS 5 Swapper or classic DLSS Swapper. The modeless panel starts without consent or a selected program, fingerprints on a background thread, rechecks the selected bytes with replacement-resistant file/ancestor handles, and uses a direct process launch with no arguments, inherited handles, shell, automatic elevation or media/target handoff. Forget, Cancel and close clear pending selection/permission. macOS/Linux cannot execute the Windows integration. This is a third-party launch bridge, **not** a DLSS-enabled video output or change to package/model approval. See [optional swapper guide](optional-swapper.md). Only a synthetic launcher fixture is executed in CI; external swapper operation and NVIDIA output are not certified.
 
 ## Additive cross-platform Desktop edition
 

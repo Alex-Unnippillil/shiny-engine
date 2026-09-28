@@ -62,14 +62,14 @@ try {
   Copy-Item build/vlc/Release/ShinyVlcPlayer.exe $package/
   Run python @('scripts/package-library-manager.py','build/vlc/Release',$package)
   Copy-Item build/vlc/Release/nr/* $package/nr/ -Recurse
-  Copy-Item native/vlc-player/README.md,native/vlc-player/THIRD_PARTY_NOTICES.md,docs/native-neural.md,docs/research-mode.md,LICENSE $package/
+  Copy-Item native/vlc-player/README.md,native/vlc-player/THIRD_PARTY_NOTICES.md,docs/native-neural.md,docs/research-mode.md,docs/optional-swapper.md,LICENSE $package/
   Copy-Item .deps/vlc-source/COPYING.LIB $package/LGPL-2.1.txt
   Copy-Item .deps/nr/LICENSE $package/nr/OpenDLSS-LICENSE.txt
   Copy-Item .deps/nr/NOTICE $package/nr/OpenDLSS-NOTICE.txt
   Copy-Item .deps/volk/LICENSE.md $package/nr/volk-LICENSE.txt
   Copy-Item .deps/vulkan/LICENSE.md $package/nr/Vulkan-Headers-LICENSE.txt
   Get-ChildItem $package -File -Recurse | Sort-Object FullName | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.FullName.Substring($package.Length + 1).Replace('\','/') } | Set-Content "$package/SHA256SUMS.txt"
-  Compress-Archive $package/* artifacts/vlc/ShinyPlayer-0.10.0-Windows-x64-Portable.zip -Force
+  Compress-Archive $package/* artifacts/vlc/ShinyPlayer-0.10.1-Windows-x64-Portable.zip -Force
   if (-not $SkipInstaller) {
     $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
     if (-not (Test-Path $iscc)) { throw 'Install Inno Setup 6, or pass -SkipInstaller to produce only the portable package.' }

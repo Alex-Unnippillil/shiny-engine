@@ -7,14 +7,14 @@
 [Setup]
 AppId=ShinyPlayer.Desktop.Qt
 AppName=Shiny Desktop
-AppVersion=0.1.0
+AppVersion=0.1.1
 AppPublisher=Shiny Player contributors
 DefaultDirName={localappdata}\Programs\ShinyDesktop
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir={#OutputDir}
-OutputBaseFilename=ShinyDesktop-0.1.0-Windows-x64-Setup
+OutputBaseFilename=ShinyDesktop-0.1.1-Windows-x64-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

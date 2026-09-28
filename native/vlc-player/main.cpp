@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "ui.hpp"
+#include "../swapper/bridge.hpp"
 namespace shiny::ui {
 LRESULT CALLBACK windowProc(HWND h,UINT m,WPARAM w,LPARAM l){
  auto* p=reinterpret_cast<Window*>(GetWindowLongPtrW(h,GWLP_USERDATA));if(m==WM_NCCREATE){p=static_cast<Window*>(reinterpret_cast<CREATESTRUCTW*>(l)->lpCreateParams);p->hwnd=h;SetWindowLongPtrW(h,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(p));}if(!p)return DefWindowProcW(h,m,w,l);
@@ -40,7 +41,7 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int show){
    Window window;std::vector<std::filesystem::path> files;
    for(int i=1;i<argc;++i){std::wstring arg=argv[i];if(arg==L"--vlc-dir"&&i+1<argc)window.runtimeFolder=argv[++i];else if(arg==L"--ui-smoke"&&i+2<argc){window.smoke=true;files.emplace_back(argv[++i]);window.smokeImage=argv[++i];}else if(arg.starts_with(L"--"))throw std::runtime_error("Unknown player option.");else files.emplace_back(arg);}
    HWND h=CreateWindowExW(0,L"ShinyVlcPlayer",L"Shiny Player",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,1280,800,nullptr,nullptr,instance,&window);if(!h)throw std::runtime_error("Cannot create player window.");ShowWindow(h,show);UpdateWindow(h);if(!files.empty())window.addFiles(files);
-   MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){try{if(window.key(msg))continue;}catch(const std::exception&e){window.failure(e);}if(!IsDialogMessageW(GetAncestor(msg.hwnd,GA_ROOT),&msg)){TranslateMessage(&msg);DispatchMessageW(&msg);}}result=static_cast<int>(msg.wParam);
+   MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){if(shiny::swapper::translate(&msg))continue;try{if(window.key(msg))continue;}catch(const std::exception&e){window.failure(e);}if(!IsDialogMessageW(GetAncestor(msg.hwnd,GA_ROOT),&msg)){TranslateMessage(&msg);DispatchMessageW(&msg);}}result=static_cast<int>(msg.wParam);
   }
  }catch(const std::exception& e){if(!automated)MessageBoxW(nullptr,wide(e.what()).c_str(),L"Shiny Player",MB_OK|MB_ICONERROR);}
  if(backgroundBrush)DeleteObject(backgroundBrush);if(panelBrush)DeleteObject(panelBrush);Gdiplus::GdiplusShutdown(token);CoUninitialize();LocalFree(argv);return result;

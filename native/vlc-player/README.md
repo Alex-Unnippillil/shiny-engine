@@ -39,3 +39,7 @@ From the repository root, `powershell -File scripts/Build-Windows.ps1`. Requires
 ## Enhancement Libraries (0.8)
 
 Tools > Enhancement libraries opens the native local package manager. Import bundled, verify, stage and select a reference version; then use Tools > Managed spatial preview. These first-party DLLs are conventional filters, not DLSS. See `library-manager-guide.md` in the installed package for independent-preview behavior, store recovery, cancellation and preserved original playback.
+
+## Optional external swapper
+
+Tools → Optional DLSS 5 Swapper (external) opens the opt-in Windows launcher. Select an installed/portable EXE, review the fingerprint and acknowledge third-party code before each launch. It runs separately, not as a playback backend; no media/target arguments, automatic DLL installation or elevation are requested. The external app is not sandboxed and is responsible for its own modifications/restoration. Nothing in this feature approves vendor DLLs or enables DLSS in VLC. See the included `optional-swapper.md` or `docs/optional-swapper.md` in the source repository.

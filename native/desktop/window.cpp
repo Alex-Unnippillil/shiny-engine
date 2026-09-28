@@ -32,6 +32,21 @@
 #include <QVideoSink>
 #include <QVideoWidget>
 #include <stdexcept>
+#ifdef Q_OS_WIN
+#include "../swapper/bridge.hpp"
+#include <QAbstractNativeEventFilter>
+namespace {
+class SwapperEvents final : public QAbstractNativeEventFilter {
+    bool nativeEventFilter(const QByteArray& type, void* message, qintptr* result) override {
+        if ((type == "windows_generic_MSG" || type == "windows_dispatcher_MSG") && shiny::swapper::translate(message)) {
+            *result = 0; return true;
+        }
+        return false;
+    }
+};
+SwapperEvents swapperEvents;
+}
+#endif
 namespace shiny::desktop {
 namespace {
 QLabel* label(const QString& text, const char* name = nullptr) {
@@ -61,6 +76,9 @@ Window::Window(bool ephemeral) {
     if (!ephemeral) settings = new QSettings(this);
     buildUi();
     buildMenu();
+#ifdef Q_OS_WIN
+    qApp->installNativeEventFilter(&swapperEvents);
+#endif
     audio->setVolume(static_cast<float>(settings ? qBound(0.0, settings->value("volume", 0.65).toDouble(), 1.0) : 0.65));
     volume->setValue(qRound(audio->volume() * 100));
     setDark(settings ? settings->value("dark", true).toBool() : true);
@@ -236,6 +254,19 @@ void Window::buildMenu() {
     auto* theme = view->addAction("Dark theme (off uses system palette)"); theme->setCheckable(true);
     theme->setChecked(settings ? settings->value("dark", true).toBool() : true);
     connect(theme, &QAction::toggled, this, &Window::setDark);
+    auto* tools = menuBar()->addMenu("&Tools");
+    auto* swapper = tools->addAction("Optional DLSS 5 Swapper (external)…");
+    swapper->setObjectName("externalSwapper");
+#ifdef Q_OS_WIN
+    connect(swapper, &QAction::triggered, this, [this] {
+        try { shiny::swapper::open(reinterpret_cast<void*>(winId())); }
+        catch (const std::exception& e) { showError(QString::fromUtf8(e.what())); }
+    });
+#else
+    swapper->setText("DLSS 5 Swapper — Windows only");
+    swapper->setEnabled(false);
+#endif
+    swapper->setToolTip("Optional third-party application, not a Shiny video backend. No automatic download, install target or media handoff.");
     auto* help = menuBar()->addMenu("&Help");
     connect(help->addAction("About / capabilities"), &QAction::triggered, this, [this] {
         QMessageBox::about(this, "Shiny Desktop " SHINY_DESKTOP_VERSION,
