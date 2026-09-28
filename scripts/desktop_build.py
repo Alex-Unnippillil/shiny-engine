@@ -36,7 +36,11 @@ def smoke(executable: Path, fixture: Path, output: Path, env: dict) -> dict:
     command = [executable, '--smoke', fixture, output]
     if sys.platform.startswith('linux'):
         command = ['xvfb-run', '-a', '-s', '-screen 0 1280x900x24', *command]
-    completed = subprocess.run([str(a) for a in command], cwd=ROOT, env=env, capture_output=True,
+    # Qt GUI applications use the Windows debugger sink by default. Request
+    # its documented stderr sink only for this explicit smoke-test subprocess.
+    smoke_env = env.copy()
+    smoke_env['QT_FORCE_STDERR_LOGGING'] = '1'
+    completed = subprocess.run([str(a) for a in command], cwd=ROOT, env=smoke_env, capture_output=True,
                                text=True, encoding='utf-8', errors='replace', timeout=60)
     if completed.returncode:
         print(completed.stdout, completed.stderr)
