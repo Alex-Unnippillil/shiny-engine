@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: videolan/vlc
-          ref: 6de05adcbaf2e8b85fe86aad4169398628119
+          ref: 6de05adcbaf2e8b85fe86aad4169393098628119
           path: .deps/vlc-source
           sparse-checkout: include/vlc
           persist-credentials: false
