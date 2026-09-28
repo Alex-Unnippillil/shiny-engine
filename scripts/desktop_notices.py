@@ -29,7 +29,7 @@ def collect(root: Path, output: Path) -> dict:
         sources = ['https://packages.ubuntu.com/noble/qt6-base-dev', 'https://packages.ubuntu.com/noble/qt6-multimedia-dev']
     else:
         source_root = root / '.qt-source'
-        for module in ['qtbase', 'qtmultimedia']:
+        for module in ['qtbase', 'qtmultimedia', 'qtsvg']:
             candidates = [p.parent for p in source_root.rglob('CMakeLists.txt') if p.parent.name == module]
             if len(candidates) != 1:
                 raise RuntimeError('Missing unambiguous corresponding Qt source: ' + module)
@@ -55,7 +55,7 @@ def collect(root: Path, output: Path) -> dict:
         if not list(output.rglob('*LGPL-3*')):
             raise RuntimeError('Full LGPLv3 license text is required')
         sources = [f'https://download.qt.io/official_releases/qt/6.11/6.11.2/submodules/{m}-everywhere-src-6.11.2.tar.xz'
-                   for m in ['qtbase', 'qtmultimedia']]
+                   for m in ['qtbase', 'qtmultimedia', 'qtsvg']]
         sources += ['https://code.qt.io/cgit/qt/qtmultimedia.git/tree/src/3rdparty/ffmpeg?h=v6.11.2',
                     'https://ffmpeg.org/releases/ffmpeg-7.1.3.tar.xz']
         records.append({'package': 'FFmpeg', 'version': '7.1.3', 'configuration': 'Qt official shared binaries; see qtmultimedia FFmpeg build scripts and attributions'})

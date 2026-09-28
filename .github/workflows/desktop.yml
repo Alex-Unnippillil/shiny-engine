@@ -46,7 +46,7 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then PY=.venv-desktop/Scripts/python.exe; else PY=.venv-desktop/bin/python; fi
           "$PY" -m pip install aqtinstall==3.3.0
           "$PY" scripts/install_desktop_qt.py install-qt '${{ matrix.host }}' desktop 6.11.2 '${{ matrix.qtarch }}' -O .qt --modules qtmultimedia
-          "$PY" -m aqt install-src '${{ matrix.host }}' 6.11.2 -O .qt-source --archives qtbase qtmultimedia
+          "$PY" -m aqt install-src '${{ matrix.host }}' 6.11.2 -O .qt-source --archives qtbase qtmultimedia qtsvg
       - name: Compile, test, package, install, decode and uninstall
         run: python3 scripts/desktop_build.py --platform ${{ matrix.target }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
