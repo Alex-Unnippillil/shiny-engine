@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Shiny Desktop
+Comment=Local video and audio player
+Exec=ShinyDesktop %F
+Terminal=false
+Categories=AudioVideo;Player;
+MimeType=video/mp4;video/x-matroska;video/webm;video/x-msvideo;audio/mpeg;audio/flac;audio/x-wav;
+StartupNotify=true
