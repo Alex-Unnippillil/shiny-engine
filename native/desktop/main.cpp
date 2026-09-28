@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSaveFile>
+#include <QScreen>
 #include <QSysInfo>
 #include <QTimer>
 #include <iostream>
@@ -50,7 +51,7 @@ int smoke(QApplication& app, const QString& fixture, const QString& destination)
             sought = true;
             try {
                 window.snapshot(out.filePath("decoded-frame.png"));
-                if (!window.grab().save(out.filePath("desktop.png"))) { finish(false, "window-capture-failed"); return; }
+                if (!window.screen()->grabWindow(window.winId()).save(out.filePath("desktop.png"))) { finish(false, "window-capture-failed"); return; }
                 window.stop(); phase = 3; pausedAt = elapsed.elapsed();
             } catch (...) { finish(false, "snapshot-export-failed"); }
         } else if (phase == 3 && elapsed.elapsed() - pausedAt > 150) {

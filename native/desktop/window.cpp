@@ -80,8 +80,9 @@ Window::Window(bool ephemeral) {
         refreshState();
         if (state == QMediaPlayer::EndOfMedia) {
             const auto source = player->source();
-            QTimer::singleShot(0, this, [this, source] {
-                if (closing || player->source() != source || player->mediaStatus() != QMediaPlayer::EndOfMedia) return;
+            const auto session = generation;
+            QTimer::singleShot(0, this, [this, source, session] {
+                if (closing || session != generation || player->source() != source || player->mediaStatus() != QMediaPlayer::EndOfMedia) return;
                 if (repeat->currentIndex() == 1) { player->setPosition(0); player->play(); }
                 else if (current + 1 < items.size() || repeat->currentIndex() == 2) selectNext();
             });
@@ -97,7 +98,7 @@ Window::Window(bool ephemeral) {
 }
 void Window::buildUi() {
     auto* central = new QWidget;
-    auto* outer = new QVBoxLayout(central);
+    auto* outer = newQVBoxLayout(central);
     outer->setContentsMargins(20, 16, 20, 16);
     outer->setSpacing(12);
     auto* header = new QHBoxLayout;
@@ -163,6 +164,12 @@ void Window::buildUi() {
     seek->setObjectName("seek"); seek->setRange(0, 10000); seek->setAccessibleName("Seek position");
     connect(seek, &QSlider::sliderReleased, this, [this] {
         if (player->isSeekable()) player->setPosition(player->duration() * seek->value() / 10000);
+    });
+    connect(seek, &QSlider::actionTriggered, this, [this](int action) {
+        // Keyboard/page-step actions do not emit sliderReleased. The thumb's
+        // position is updated before valueChanged and must be read directly.
+        if (action != QAbstractSlider::SliderMove && player->isSeekable())
+            player->setPosition(player->duration() * seek->sliderPosition() / 10000);
     });
     time = label("0:00 / 0:00", "time"); time->setMinimumWidth(110);
     timeline->addWidget(seek, 1); timeline->addWidget(time); outer->addLayout(timeline);
@@ -309,7 +316,7 @@ void Window::playIndex(int index) {
     if (index < 0 || index >= items.size()) return;
     try {
         (void)localMedia(items[index].url.toLocalFile());
-        player->stop(); latest = {}; error.clear(); current = index;
+        ++generation; player->stop(); latest = {}; error.clear(); current = index;
         player->setSource(items[index].url); player->play();
         title->setText(items[index].title); refreshQueue(); refreshState();
     } catch (const std::exception& e) { showError(QString::fromUtf8(e.what())); }
@@ -320,7 +327,7 @@ void Window::togglePlayback() {
     else if (list->currentItem()) playIndex(list->currentItem()->data(Qt::UserRole).toInt());
     else if (!items.isEmpty()) playIndex(0);
 }
-void Window::stop() { player->stop(); latest = {}; capture->setEnabled(false); refreshState(); }
+void Window::stop() { ++generation; player->stop(); latest = {}; capture->setEnabled(false); refreshState(); }
 void Window::clearQueue() {
     stop(); player->setSource({}); items.clear(); current = -1; latest = {}; error.clear(); filter->clear();
     title->setText("Your media. Your device."); refreshQueue(); refreshTracks(); refreshState();

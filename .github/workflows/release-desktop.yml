@@ -1,0 +1,42 @@
+name: Publish verified cross-platform desktop
+on:
+  workflow_run:
+    workflows: [Cross-platform desktop, VLC desktop player, Native Windows, Browser and package, VLC library audit]
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+  checks: read
+concurrency:
+  group: cross-platform-desktop-release
+  cancel-in-progress: false
+jobs:
+  publish-desktop:
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.id == github.event.repository.id
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Gate current main before checkout
+        id: gate
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          if [[ "$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')" == "$RELEASE_SHA" ]]; then
+            echo 'current=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        if: steps.gate.outputs.current == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Verify all platforms and publish without overwriting releases
+        if: steps.gate.outputs.current == 'true'
+        run: python scripts/release_desktop.py

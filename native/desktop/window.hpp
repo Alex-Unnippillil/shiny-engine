@@ -80,6 +80,7 @@ private:
     QVideoFrame latest;
     int current = -1;
     quint64 frames = 0;
+    quint64 generation = 0;
     bool closing = false;
     bool dark = true;
     QString error;

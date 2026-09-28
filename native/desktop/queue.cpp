@@ -29,8 +29,11 @@ QList<Media> readPlaylist(const QString& path) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly) || file.size() > 1024 * 1024)
         throw std::runtime_error("Playlist is unreadable or exceeds the 1 MiB limit.");
+    const auto bytes = file.read(1024 * 1024 + 1);
+    if (bytes.size() > 1024 * 1024 || !file.atEnd())
+        throw std::runtime_error("Playlist exceeds the 1 MiB limit.");
     QJsonParseError error;
-    const auto document = QJsonDocument::fromJson(file.readAll(), &error);
+    const auto document = QJsonDocument::fromJson(bytes, &error);
     const auto root = document.object();
     if (error.error != QJsonParseError::NoError || !document.isObject() || root.size() != 2 ||
         !root.value("schema").isDouble() || root.value("schema").toDouble() != 1 || !root.value("files").isArray())
@@ -52,6 +55,7 @@ void savePlaylist(const QString& path, const QList<Media>& items) {
         files.append(item.url.toLocalFile());
     }
     const auto data = QJsonDocument(QJsonObject{{"schema", 1}, {"files", files}}).toJson();
+    if (data.size() > 1024 * 1024) throw std::runtime_error("Playlist exceeds the 1 MiB limit.");
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size() || !file.commit())
         throw std::runtime_error("Could not save the playlist atomically.");

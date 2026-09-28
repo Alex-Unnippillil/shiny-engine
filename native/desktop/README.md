@@ -2,6 +2,12 @@
 
 A C++20 / Qt Widgets desktop application for Windows, macOS and Ubuntu Linux. This is an **additive edition**, not a port of the Windows enhancement manager. It uses **Qt Multimedia**, not libVLC; the existing Windows Shiny Player retains its VLC tools, package store and research workflows unchanged.
 
+## Downloads
+
+[Windows Setup](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/desktop-v0.1.0/ShinyDesktop-0.1.0-Windows-x64-Setup.exe) · [Windows Portable](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/desktop-v0.1.0/ShinyDesktop-0.1.0-Windows-x64-Portable.zip) · [Apple Silicon DMG](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/desktop-v0.1.0/ShinyDesktop-0.1.0-macOS-arm64.dmg) · [Intel Mac DMG](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/desktop-v0.1.0/ShinyDesktop-0.1.0-macOS-x64.dmg) · [Ubuntu DEB](https://github.com/Alex-Unnippillil/shiny-engine/releases/download/desktop-v0.1.0/ShinyDesktop-0.1.0-Linux-x64.deb)
+
+[Release, source, platform evidence and SHA-256 checksums](https://github.com/Alex-Unnippillil/shiny-engine/releases/tag/desktop-v0.1.0). The Windows libVLC edition's 0.10 release remains separate and unchanged.
+
 ## Features
 
 Open or drop local video/audio. Filter the temporary queue by title, remove the correct filtered item, navigate tracks, seek, change speed, repeat one/all, select embedded audio/subtitle tracks, toggle fullscreen and export a decoded frame as PNG. Save/open a strict version-1 local playlist explicitly. The dark theme can be disabled to use the native system palette. Menus, labels and controls retain native keyboard semantics and accessibility names.
@@ -39,3 +45,18 @@ This edition does **not** claim DLSS, neural inference, DLL swapping, VLC featur
 
 Qt deployment documentation: https://doc.qt.io/qt-6/qt-generate-deploy-app-script.html
 Qt Multimedia backend/deployment: https://doc.qt.io/qt-6/qtmultimedia-index.html
+
+## Edition architecture
+
+```mermaid
+flowchart LR
+    User[Explicit local files] --> UI[Qt Widgets desktop]
+    UI --> Media[Qt Multimedia player]
+    Media --> Video[Native video surface and audio output]
+    UI --> Queue[Temporary title-filtered queue]
+    Queue --> Playlist[Explicit bounded JSON save/load]
+    Media --> Frame[User-requested PNG frame export]
+    UI --> Prefs[Theme and volume only]
+```
+
+This app has no API for the existing Windows DLL/model workers. Keeping the editions separate preserves those authorization boundaries rather than silently dropping them during a port. Use trusted local media: protocol input restrictions are not a hostile-file or mounted-storage sandbox.

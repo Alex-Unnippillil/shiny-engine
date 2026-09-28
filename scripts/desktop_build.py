@@ -18,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = '0.1.0'
 QT_VERSION = '6.11.2'
 
+from desktop_notices import collect, inventory
+
 
 def run(*args: object, cwd: Path = ROOT, env: dict | None = None, timeout: int = 900) -> None:
     subprocess.run([str(a) for a in args], cwd=cwd, env=env, check=True, timeout=timeout)
@@ -72,7 +74,7 @@ def main() -> None:
             options += [f'-DCMAKE_OSX_ARCHITECTURES={machine}', '-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0']
     run('cmake', '-S', 'native/desktop', '-B', build, *options, env=env)
     run('cmake', '--build', build, '--config', 'Release', '--parallel', '3', env=env)
-    run('ctest', '--test-dir', build, '-C', 'Release', '--output-on-failure', env=env)
+    run('ctest', '--test-dir', build, '-C', 'Release', '--output-on-failure', '--output-junit', artifacts / 'ctest.xml', env=env)
     fixture_dir = ROOT / 'build/desktop-fixture'
     run(sys.executable, 'tests/vlc-player/make_fixture.py', fixture_dir)
     fixture = fixture_dir / 'moving-original.avi'
@@ -80,6 +82,7 @@ def main() -> None:
     if sys.platform == 'win32': executable = build / 'Release/ShinyDesktop.exe'
     if sys.platform == 'darwin': executable = build / 'ShinyDesktop.app/Contents/MacOS/ShinyDesktop'
     smoke(executable, fixture, artifacts / 'build-smoke', env)
+    dependency_info = collect(ROOT, build / 'notices')
     run('cmake', '--install', build, '--config', 'Release', '--prefix', stage, env=env)
     base = f'ShinyDesktop-{VERSION}-{target}'
     runtime_env = env.copy()
@@ -89,6 +92,7 @@ def main() -> None:
     for key in ['QT_PLUGIN_PATH', 'QML2_IMPORT_PATH', 'QT_QPA_PLATFORM_PLUGIN_PATH']:
         runtime_env.pop(key, None)
     if sys.platform == 'win32':
+        inventory(stage, artifacts / 'installed-payload.json')
         run('cmake', '-E', 'tar', 'cf', artifacts / (base + '-Portable.zip'), '--format=zip', '.', cwd=stage)
         iscc = Path(r'C:\Program Files (x86)\Inno Setup 6\ISCC.exe')
         run(iscc, '/Qp', f'/DPackageDir={stage}', f'/DOutputDir={artifacts}', 'installers/desktop/windows.iss')
@@ -107,6 +111,7 @@ def main() -> None:
         # Ad-hoc integrity signature only; not a Developer ID or notarization claim.
         run('codesign', '--force', '--deep', '--sign', '-', bundle)
         run('codesign', '--verify', '--deep', '--strict', bundle)
+        inventory(stage, artifacts / 'installed-payload.json')
         os.symlink('/Applications', stage / 'Applications')
         dmg = artifacts / (base + '.dmg')
         run('hdiutil', 'create', '-volname', 'Shiny Desktop', '-srcfolder', stage, '-ov', '-format', 'UDZO', dmg)
@@ -123,7 +128,11 @@ def main() -> None:
             finally:
                 run('hdiutil', 'detach', mount)
     else:
-        run('cpack', '--config', build / 'CPackConfig.cmake', '-B', artifacts, env=env)
+        inventory(stage, artifacts / 'installed-payload.json')
+        packaging = ROOT / 'build/desktop-packages'
+        run('cpack', '--config', build / 'CPackConfig.cmake', '-B', packaging, env=env)
+        for name in [base + '.deb', base + '.tar.gz']:
+            shutil.copyfile(packaging / name, artifacts / name)
         package = artifacts / (base + '.deb')
         run('sudo', 'apt-get', 'install', '-y', package)
         try:
@@ -140,6 +149,8 @@ def main() -> None:
               'qt': json.loads((artifacts / 'installed-smoke/playback.json').read_text())['qt'],
               'linuxDependencies': 'OS-managed Qt/FFmpeg/GStreamer (not a universal Linux binary)' if sys.platform.startswith('linux') else None}
     (artifacts / 'build-info.json').write_text(json.dumps(report, indent=2) + '\n')
+    (artifacts / 'dependencies.json').write_text(json.dumps(dependency_info, indent=2) + '\n')
+    run('git', 'archive', '--format=zip', '-o', artifacts / (base + '-Source.zip'), 'HEAD', 'native/desktop', 'installers/desktop', 'scripts/desktop_build.py', 'scripts/desktop_notices.py', 'scripts/install_desktop_qt.py', 'tests/desktop', 'tests/vlc-player/make_fixture.py', 'LICENSE')
     shutil.copyfile(ROOT / 'native/desktop/README.md', artifacts / 'README.md')
     shutil.copyfile(ROOT / 'native/desktop/THIRD_PARTY_NOTICES.md', artifacts / 'THIRD_PARTY_NOTICES.md')
     payloads = sorted(p for p in artifacts.rglob('*') if p.is_file() and p.name != 'SHA256SUMS.txt')
