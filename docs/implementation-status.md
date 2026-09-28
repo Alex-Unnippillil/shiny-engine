@@ -1,4 +1,10 @@
-# Implementation status — 0.10.0
+# Implementation status — Windows VLC 0.10.0 and Desktop 0.1.0
+
+## Additive cross-platform Desktop edition
+
+`native/desktop` implements a separate C++20 / Qt Widgets/Multimedia local-media player with Windows x64 Setup/ZIP, macOS arm64/x64 DMGs and Ubuntu 24.04 x64 DEB/TGZ packaging. It adds searchable queues, explicit atomic playlists/snapshots, transport/rate/repeat and embedded-track selection. It is not libVLC or a port of the Windows enhancement/model workers. The original Windows application and research/library plans remain unchanged.
+
+Distribution is prerelease: unsigned Windows, ad-hoc-only macOS (not Developer ID/notarized), and dependency-managed Ubuntu rather than a universal Linux binary. Four native-host install/playback/remove checks and the existing five application check names gate the independent `desktop-v0.1.0` release. Qt is dynamically linked; dependency notices, source access and payload hashes accompany packages. Read [the Desktop guide](../native/desktop/README.md) for its feature differences and installation requirements. Successful exact-commit reports, not source tests alone, establish which targets passed.
 
 The library-management update is described in [library-manager-status.md](library-manager-status.md): persistent local catalog/quarantine, cold selection and rollback of exact-build spatial reference DLLs, and an independent VLC-decoded comparison preview. This is not a new NVIDIA DLSS backend or completion of hardware/signing gates.
 
@@ -18,7 +24,7 @@ The original research plan remains unchanged. Its proposed goals are not retroac
 | Native NR | Pinned graph/worker, strict model-data intake, reviewed-only and explicit local-research modes, private frame protocol, sliders, matched-input composition and exports | Authorized trained-model runs and vendor parity, video-quality study, named-GPU performance, temporal reconstruction, main-audio synchronization, 4K/HDR |
 | Browser | Spatial Media Lab, reviewed-only Neural Lab and LookLock still-frame protection | Universal site support, trained browser-model certification, HDR |
 | Capture companion | Windows picker/D3D11 spatial preview and bounded native controls | Click-through overlay, D3D/Vulkan interop, interactive full-display/multi-monitor certification |
-| Distribution | Per-user Windows x64 installer, optional verified VLC prerequisite, portable/source packages, checksums and exact-main gated releases | Code signing, native macOS/Linux installers, updater |
+| Distribution | Per-user Windows x64 installer, optional verified VLC prerequisite, portable/source packages, checksums and exact-main gated releases | Code signing and updater; macOS/Linux installers now belong to the separate Qt Desktop edition above |
 
 The owner requested a separate local educational experimentation path. A successfully validated user model can be prepared with explicit session acknowledgment even when it is absent from the curated registry. That does not add production approval or prove rights/correctness. This policy is documented in `research-mode.md`; browser approvals remain unchanged.
 

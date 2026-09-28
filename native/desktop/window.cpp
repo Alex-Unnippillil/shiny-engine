@@ -98,7 +98,7 @@ Window::Window(bool ephemeral) {
 }
 void Window::buildUi() {
     auto* central = new QWidget;
-    auto* outer = newQVBoxLayout(central);
+    auto* outer = new QVBoxLayout(central);
     outer->setContentsMargins(20, 16, 20, 16);
     outer->setSpacing(12);
     auto* header = new QHBoxLayout;
