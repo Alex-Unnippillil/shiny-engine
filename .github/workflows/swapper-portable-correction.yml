@@ -1,0 +1,54 @@
+name: Apply reviewed portable launcher correction
+on:
+  push:
+    branches: ['feat/optional-dlss-swapper']
+permissions:
+  contents: write
+jobs:
+  correction:
+    if: >-
+      github.event.head_commit.message == 'chore: apply reviewed portable launcher correction'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 2
+      - name: Apply exact reviewed source edits on feature branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/feat/optional-dlss-swapper'
+          test "$(git rev-parse HEAD^)" = '30ee553cf1af6ff671ceff00f6dc2a6a1a917dc6'
+          python - <<'PY'
+          import base64, hashlib, json, pathlib, zlib
+          encoded = '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'
+          decoder = zlib.decompressobj()
+          raw = decoder.decompress(base64.b64decode(encoded, validate=True), 10000)
+          assert decoder.eof and not decoder.unused_data and len(raw) == 5032
+          assert hashlib.sha256(raw).hexdigest() == 'b05a110a4853251cb3dc5e8362b72b8630c85ea01d72b6089586851207cd85c0'
+          rows = json.loads(raw)
+          allowed = {'native/swapper/policy.hpp','native/swapper/service.hpp','native/swapper/service.cpp','native/swapper/dialog.cpp','tests/swapper/policy.cpp','tests/swapper/windows.cpp','docs/optional-swapper.md'}
+          assert len(rows) == 7 and {r['path'] for r in rows} == allowed
+          for row in rows:
+              path = pathlib.Path(row['path'])
+              assert path.is_file() and not path.is_symlink()
+              old = path.read_bytes()
+              assert hashlib.sha256(old).hexdigest() == row['before'], str(path)
+              lines = old.decode('utf-8').splitlines(keepends=True)
+              last = 0
+              for start,end,text in row['changes']:
+                  assert type(start) is int and type(end) is int and last <= start <= end <= len(lines) and isinstance(text,str)
+                  last = end
+              for start,end,text in reversed(row['changes']):
+                  lines[start:end] = [text]
+              new = ''.join(lines).encode('utf-8')
+              assert hashlib.sha256(new).hexdigest() == row['after'], str(path)
+              path.write_bytes(new)
+          PY
+          git add -- native/swapper tests/swapper docs/optional-swapper.md
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: inspect portable launcher architectures and reset failed background work'
+          git push origin HEAD:refs/heads/feat/optional-dlss-swapper
