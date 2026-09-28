@@ -74,6 +74,12 @@ def collect(root: Path, output: Path, ffmpeg_runtime: str | None = None) -> dict
 
 def inventory(stage: Path, output: Path) -> None:
     records = []
+    if sys.platform == 'win32':
+        for name in ('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll'):
+            if not (stage / 'bin' / name).is_file():
+                raise RuntimeError('Required app-local compiler runtime missing: ' + name)
+        if (stage / 'bin/opengl32sw.dll').exists():
+            raise RuntimeError('Unselected software OpenGL runtime must not be packaged')
     for p in sorted(stage.rglob('*')):
         if p.is_file() and not p.is_symlink():
             if p.suffix.lower() in {'.ttf', '.otf', '.woff', '.woff2'}:
